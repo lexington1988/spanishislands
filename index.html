@@ -1,73 +1,1703 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lilac Flashcards App</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f3fb;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-      margin: 0;
-      padding: 20px;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spanish Islands</title>
+  <link rel="manifest" href="./manifest.json">
+
+<link rel="icon" href="./favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32x32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+
+<meta name="theme-color" content="#0f6b6e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Spanish Islands">
+<style>
+:root {
+  --ink: #17272b;
+  --muted: #65777b;
+  --sea: #0f6b6e;
+  --sea-dark: #08494d;
+  --sea-soft: #d8eeea;
+  --paper: rgba(255, 255, 250, 0.78);
+  --white: #ffffff;
+  --coral: #e8795c;
+  --line: rgba(23, 39, 43, 0.14);
+  --shadow: 0 24px 70px rgba(8, 73, 77, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 2%, rgba(232, 121, 92, 0.16), transparent 28%),
+    linear-gradient(135deg, #f8fcfa 0%, #edf7f3 48%, #e5f0f1 100%);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px clamp(16px, 4vw, 44px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background:
+    linear-gradient(145deg, transparent 44%, rgba(255, 255, 250, 0.9) 45% 54%, transparent 55%),
+    linear-gradient(145deg, var(--sea), #7dbcae);
+  box-shadow: inset 0 -8px 18px rgba(8, 73, 77, 0.28), 0 12px 30px rgba(8, 73, 77, 0.22);
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.logo::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--coral);
+  right: 9px;
+  top: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 54px);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.brand p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.top-actions,
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 16px;
+  color: var(--ink);
+  background: rgba(255, 255, 250, 0.76);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(8, 73, 77, 0.13);
+}
+
+.btn.primary {
+  color: #fff;
+  background: var(--sea);
+  border-color: transparent;
+  box-shadow: 0 12px 28px rgba(15, 107, 110, 0.24);
+}
+.btn.shadow-active {
+  color: #fff;
+  background: var(--sea);
+  border-color: transparent;
+  box-shadow: 0 12px 28px rgba(15, 107, 110, 0.24);
+}
+.btn.full {
+  width: 100%;
+  justify-content: center;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(260px, 330px);
+  gap: 18px;
+  padding: 0 clamp(16px, 4vw, 44px) 34px;
+}
+
+.panel,
+.main-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+}
+
+.panel {
+  min-height: 690px;
+}
+
+.panel-head {
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow,
+.section-label {
+  color: var(--sea);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.panel h2 {
+  margin: 5px 0 0;
+  font-size: 20px;
+}
+
+.island-list {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.island-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  padding: 13px;
+  text-align: left;
+  color: var(--ink);
+}
+
+.island-item:hover,
+.island-item.active {
+  background: var(--sea-soft);
+  border-color: rgba(15, 107, 110, 0.22);
+}
+
+.island-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 850;
+}
+
+.island-meta {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+  padding-right: 62px;
+}
+.island-wrap {
+  position: relative;
+}
+
+.island-title {
+  padding-right: 24px;
+}
+
+.island-delete {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.island-delete:hover,
+.island-delete:focus-visible {
+  background: rgba(184, 74, 61, 0.12);
+  color: #a33b32;
+  opacity: 1;
+}
+  .island-audio {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  border: 0;
+  padding: 3px 5px;
+  background: transparent;
+  color: var(--sea-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: 7px;
+}
+
+.island-audio:hover,
+.island-audio:focus-visible,
+.island-audio.playing {
+  background: rgba(15, 107, 110, 0.1);
+}
+
+.daily-input {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.main-card {
+  min-height: 690px;
+}
+
+.question-hero {
+  padding: clamp(22px, 4vw, 36px);
+  background:
+    linear-gradient(125deg, rgba(8, 73, 77, 0.95), rgba(15, 107, 110, 0.78)),
+    radial-gradient(circle at 75% 30%, rgba(255, 255, 250, 0.28), transparent 26%);
+  color: #fff;
+}
+
+.hero-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 13px;
+}
+
+.question-hero h2 {
+  margin: 0;
+  max-width: 850px;
+  font-size: clamp(34px, 5vw, 72px);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.question-hero p {
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(16px, 2vw, 20px);
+}
+
+.practice-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(230px, 0.92fr);
+  gap: 22px;
+  padding: clamp(18px, 3vw, 30px);
+}
+
+.answer-es {
+  margin: 12px 0 0;
+  font-size: clamp(22px, 2.7vw, 34px);
+  line-height: 1.28;
+  font-weight: 780;
+}
+
+.answer-en {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.button-row {
+  margin-top: 24px;
+}
+
+.chunks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.chunk {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: var(--sea-dark);
+  background: #fff;
+  font-weight: 750;
+}
+
+.tool-block {
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+}
+
+.tool-block:first-of-type {
+  border-top: 0;
+}
+
+.mode {
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.62);
+  text-align: left;
+  color: var(--ink);
+}
+
+.mode strong,
+.mode span {
+  display: block;
+}
+
+.mode span,
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.mode.active,
+.mode:hover {
+  background: #fff;
+  border-color: rgba(15, 107, 110, 0.35);
+}
+
+label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--ink);
+  padding: 11px 12px;
+  outline: none;
+}
+
+textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.rating {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+}
+
+.rating button {
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--sea-dark);
+  font-weight: 850;
+}
+
+.rating button.active {
+  color: #fff;
+  background: var(--sea);
+  border-color: transparent;
+}
+
+.grow-box summary {
+  cursor: pointer;
+  color: var(--sea-dark);
+  font-weight: 850;
+}
+
+.hidden-answer .answer-es,
+.hidden-answer .chunks {
+  filter: blur(9px);
+  user-select: none;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  padding: 12px 16px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--sea-dark);
+  box-shadow: 0 18px 40px rgba(8, 73, 77, 0.2);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .panel,
+  .main-card {
+    min-height: auto;
+  }
+
+  .island-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .practice-grid,
+  .island-list {
+    grid-template-columns: 1fr;
+  }
+
+  .question-hero h2 {
+    font-size: 38px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .topbar,
+  .panel,
+  .main-card {
+    animation: rise 520ms ease both;
+  }
+
+  .main-card {
+    animation-delay: 80ms;
+  }
+
+  .tools-panel {
+    animation-delay: 140ms;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
     }
-    h1 {
-      color: #7e57c2;
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 30px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-      max-width: 600px;
-      width: 100%;
-      text-align: center;
-      margin: 20px 0;
-    }
-    .buttons {
-      display: flex;
-      justify-content: space-around;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    button {
-      background: #9575cd;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1rem;
-    }
-    button:hover {
-      background: #7e57c2;
-    }
-    #start-btn {
-      margin-top: 40px;
-    }
-    .hidden {
-      display: none;
-    }
-  </style>
+  }
+}
+
+</style>
 </head>
 <body>
-  <h1>Flashcards (Lilac SRS)</h1>
-  <div id="card" class="card hidden">
-    <div id="card-text">Click Start to begin</div>
-  </div>
-  <div class="buttons hidden" id="rating-buttons">
-    <button onclick="rateCard(1)">Again</button>
-    <button onclick="rateCard(2)">Hard</button>
-    <button onclick="rateCard(3)">Good</button>
-    <button onclick="rateCard(4)">Easy</button>
-  </div>
-  <button id="start-btn" onclick="startReview()">Start</button>
-  <script src="script.js"></script>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>Spanish Islands</h1>
+        <p>Build small safe zones for real Spanish conversations.</p>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button id="newIslandBtn" class="btn soft">New Island</button>
+      <button id="exportBtn" class="btn soft">Export</button>
+<button id="importBtn" class="btn soft">Import JSON</button>
+<button id="importCsvBtn" class="btn soft">Import CSV</button>
+<button id="randomBtn" class="btn primary">Random Question</button>
+<input id="importFile" type="file" accept="application/json" hidden>
+<input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel island-panel">
+      <div class="panel-head">
+  <span class="eyebrow">Active islands</span>
+  <h2>Choose a topic</h2>
+  <div id="dailyInput" class="daily-input">Today: 0:00 input</div>
+</div>
+      <div id="islandList" class="island-list"></div>
+    </aside>
+
+    <section id="mainCard" class="main-card">
+      <div class="question-hero">
+        <div class="hero-meta">
+          <span id="levelPill">Level 1</span>
+          <span id="counterPill">1 / 1</span>
+        </div>
+        <h2 id="questionEs">¿De qué trabajas?</h2>
+        <p id="questionEn">What do you do for work?</p>
+      </div>
+
+      <div class="practice-grid">
+        <section class="answer-area">
+          <span class="section-label">Model answer</span>
+          <p id="answerEs" class="answer-es"></p>
+          <p id="answerEn" class="answer-en"></p>
+
+          <div class="button-row">
+            <button id="listenBtn" class="btn primary">Listen</button>
+            <button id="shadowBtn" class="btn soft">Shadow</button>
+            <button id="hideBtn" class="btn soft">Hide Spanish</button>
+            <button id="prevBtn" class="btn soft">Previous</button>
+            <button id="nextBtn" class="btn soft">Next</button>
+          </div>
+        </section>
+
+        <section class="chunk-area">
+          <span class="section-label">Reusable chunks</span>
+          <div id="chunks" class="chunks"></div>
+        </section>
+      </div>
+    </section>
+
+    <aside class="panel tools-panel">
+      <div class="panel-head">
+        <span class="eyebrow">Practice tools</span>
+        <h2>Speak, shadow, improve</h2>
+      </div>
+
+      <div class="tool-block">
+        <button class="mode active" data-mode="read">
+          <strong>Read mode</strong>
+          <span>Read and listen with the answer visible.</span>
+        </button>
+        <button class="mode" data-mode="recall">
+          <strong>Recall mode</strong>
+          <span>Hide the Spanish and produce it aloud.</span>
+        </button>
+        <button class="mode" data-mode="conversation">
+          <strong>Conversation mode</strong>
+          <span>Jump between questions like a lesson.</span>
+        </button>
+      </div>
+
+      <div class="tool-block">
+        <label for="voiceSelect">Spanish voice</label>
+        <select id="voiceSelect"></select>
+        <p class="hint">Uses free browser voices. Edge and Chrome usually work best.</p>
+      </div>
+
+      <div class="tool-block">
+        <label>Confidence</label>
+        <div id="rating" class="rating"></div>
+      </div>
+
+      <div class="tool-block">
+        <label for="newChunk">Add a reusable chunk</label>
+        <input id="newChunk" placeholder="e.g. cumplir la normativa">
+        <button id="addChunkBtn" class="btn primary full">Add Chunk</button>
+      </div>
+
+      <div class="tool-block">
+        <label for="wanted">Things I wanted to say</label>
+        <textarea id="wanted" placeholder="Write a phrase or idea you got stuck on."></textarea>
+        <button id="saveWantedBtn" class="btn soft full">Save Note</button>
+      </div>
+
+      <details class="tool-block grow-box">
+        <summary>Grow this island</summary>
+        <input id="newQuestionEs" placeholder="Spanish question">
+        <input id="newQuestionEn" placeholder="English question">
+        <textarea id="newAnswerEs" placeholder="Spanish model answer"></textarea>
+        <input id="newAnswerEn" placeholder="English meaning">
+        <input id="newQuestionChunks" placeholder="Chunks separated by commas">
+        <button id="addQuestionBtn" class="btn primary full">Add Question</button>
+      </details>
+    </aside>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const starterData = [
+  {
+    id: "work",
+    name: "My Work",
+    level: "Level 1 · Usable answer",
+    questions: [
+      {
+        es: "¿De qué trabajas?",
+        en: "What do you do for work?",
+        answerEs: "Soy auditor de gas. Trabajo como auditor de gas y reviso el trabajo de los ingenieros.",
+        answerEn: "I am a gas auditor. I work as a gas auditor and I check engineers' work.",
+        chunks: ["Soy auditor de gas", "Trabajo como...", "reviso el trabajo de..."],
+        confidence: 3,
+        notes: ""
+      },
+      {
+        es: "¿Qué haces en un día normal?",
+        en: "What is a normal day like in your job?",
+        answerEs: "En un día normal visito diferentes trabajos, reviso la caldera de gas y me aseguro de que todo esté bien.",
+        answerEn: "On a normal day I visit different jobs, check the gas boiler, and make sure everything is okay.",
+        chunks: ["En un día normal...", "me aseguro de que...", "todo esté bien"],
+        confidence: 2,
+        notes: ""
+      },
+      {
+        es: "¿Qué haces si hay un problema?",
+        en: "What do you do if there is a problem?",
+        answerEs: "Si hay un problema, explico lo que he encontrado y lo que hay que corregir. Intento mantener la calma y ser profesional.",
+        answerEn: "If there is a problem, I explain what I found and what needs to be corrected. I try to stay calm and professional.",
+        chunks: ["Si hay un problema...", "lo que he encontrado", "hay que corregir", "mantener la calma"],
+        confidence: 2,
+        notes: ""
+      },
+      {
+        es: "¿Cuál es la parte más importante de tu trabajo?",
+        en: "What is the most important part of your job?",
+        answerEs: "La parte más importante es la seguridad. Tengo que comprobar que el trabajo se ha hecho de forma segura y correcta.",
+        answerEn: "The most important part is safety. I have to check that the work has been done safely and correctly.",
+        chunks: ["La parte más importante...", "tengo que comprobar que...", "de forma segura y correcta"],
+        confidence: 3,
+        notes: ""
+      }
+    ]
+  },
+  {
+    id: "hobbies",
+    name: "Hobbies",
+    level: "Level 0 · Draft island",
+    questions: [
+      {
+        es: "¿Qué haces en tu tiempo libre?",
+        en: "What do you do in your free time?",
+        answerEs: "En mi tiempo libre me gusta jugar al golf, crear aplicaciones sencillas y practicar español.",
+        answerEn: "In my free time I like playing golf, creating simple apps, and practising Spanish.",
+        chunks: ["En mi tiempo libre...", "me gusta...", "crear aplicaciones sencillas"],
+        confidence: 1,
+        notes: ""
+      }
+    ]
+  },
+  {
+    id: "lessons",
+    name: "Spanish Lessons",
+    level: "Level 1 · Useful in class",
+    questions: [
+      {
+        es: "¿Qué te resulta difícil en español?",
+        en: "What do you find difficult in Spanish?",
+        answerEs: "Puedo entender bastante, pero a veces me cuesta encontrar las palabras correctas rápidamente.",
+        answerEn: "I can understand quite a lot, but sometimes I struggle to find the right words quickly.",
+        chunks: ["puedo entender bastante", "me cuesta...", "encontrar las palabras correctas"],
+        confidence: 4,
+        notes: ""
+      }
+    ]
+  }
+];
+
+const storageKey = "spanish-islands-codepen-v1";
+const inputStorageKey = "spanish-islands-daily-input-v1";
+
+let islands = loadData();
+let activeIslandIndex = 0;
+let activeQuestionIndex = 0;
+let mode = "read";
+let hidden = false;
+let shadowAutoPlay = false;
+let voices = [];
+let playingIslandId = null;
+let islandPlaybackStartedAt = 0;
+let islandPlaybackTimer = null;
+
+const islandList = document.getElementById("islandList");
+const mainCard = document.getElementById("mainCard");
+const levelPill = document.getElementById("levelPill");
+const counterPill = document.getElementById("counterPill");
+const questionEs = document.getElementById("questionEs");
+const questionEn = document.getElementById("questionEn");
+const answerEs = document.getElementById("answerEs");
+const answerEn = document.getElementById("answerEn");
+const chunks = document.getElementById("chunks");
+const rating = document.getElementById("rating");
+const voiceSelect = document.getElementById("voiceSelect");
+const toast = document.getElementById("toast");
+const dailyInput = document.getElementById("dailyInput");
+function todayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getDailyInput() {
+  try {
+    const saved =
+      JSON.parse(localStorage.getItem(inputStorageKey)) || {};
+
+    return saved.date === todayKey()
+      ? saved.milliseconds || 0
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function addDailyInput(milliseconds) {
+  const total =
+    getDailyInput() + Math.max(0, milliseconds);
+
+  localStorage.setItem(
+    inputStorageKey,
+    JSON.stringify({
+      date: todayKey(),
+      milliseconds: total
+    })
+  );
+
+  updateDailyInputDisplay();
+}
+
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(
+    0,
+    Math.round(milliseconds / 1000)
+  );
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
+}
+
+function updateDailyInputDisplay() {
+  dailyInput.textContent =
+    `Today: ${formatDuration(getDailyInput())} input`;
+}
+
+function estimatedSpeechMs(text) {
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+  return Math.max(850, (words / 130) * 60000);
+}
+
+function islandAudioSegments(island) {
+  const segments = [];
+
+  island.questions.forEach((question) => {
+    const used = new Set();
+
+    function addSegment(text, type) {
+      const clean = (text || "").trim();
+      const key = clean.toLocaleLowerCase("es");
+
+      if (!clean || used.has(key)) return;
+
+      used.add(key);
+
+      const speechMs = estimatedSpeechMs(clean);
+
+      const pauseMs =
+  type === "question"
+    ? 900
+    : type === "chunk"
+      ? Math.min(3000, Math.max(1400, speechMs * 0.65))
+      : Math.min(4500, Math.max(1800, speechMs * 0.6));
+
+      segments.push({
+        text: clean,
+        speechMs,
+        pauseMs
+      });
+    }
+
+    addSegment(question.es, "question");
+    addSegment(question.answerEs, "answer");
+
+    (question.chunks || []).forEach((chunk) => {
+      addSegment(chunk, "chunk");
+    });
+  });
+
+  return segments;
+}
+
+function islandDuration(island) {
+  return islandAudioSegments(island).reduce(
+    (total, segment) =>
+      total + segment.speechMs + segment.pauseMs,
+    0
+  );
+}
+function loadData() {
+  const saved = localStorage.getItem(storageKey);
+  if (!saved) return structuredClone(starterData);
+
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return structuredClone(starterData);
+  }
+}
+
+function saveData() {
+  localStorage.setItem(storageKey, JSON.stringify(islands));
+}
+
+function activeIsland() {
+  return islands[activeIslandIndex];
+}
+
+function activeQuestion() {
+  return activeIsland().questions[activeQuestionIndex];
+}
+
+function render() {
+  renderIslands();
+  renderQuestion();
+  renderRating();
+}
+
+function renderIslands() {
+  islandList.innerHTML = "";
+
+  islands.forEach((island, index) => {
+    const average = Math.round(
+      island.questions.reduce(
+        (sum, question) => sum + (question.confidence || 1),
+        0
+      ) / island.questions.length
+    );
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "island-wrap";
+
+    const button = document.createElement("button");
+    button.className =
+      `island-item ${index === activeIslandIndex ? "active" : ""}`;
+
+    button.innerHTML = `
+      <div class="island-title">
+        <span>${island.name}</span>
+        <span>${average}/5</span>
+      </div>
+      <div class="island-meta">
+        ${island.questions.length} questions · ${island.level}
+      </div>
+    `;
+
+    button.addEventListener("click", () => {
+      activeIslandIndex = index;
+      activeQuestionIndex = 0;
+      hidden = false;
+      render();
+    });
+
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "island-delete";
+    deleteButton.type = "button";
+    deleteButton.textContent = "×";
+    deleteButton.title = `Delete ${island.name}`;
+    deleteButton.setAttribute("aria-label", `Delete ${island.name}`);
+
+    deleteButton.addEventListener("click", () => {
+      if (islands.length === 1) {
+        showToast("You must keep at least one island.");
+        return;
+      }
+
+      const shouldDelete = confirm(
+        `Delete "${island.name}" and all ${island.questions.length} cards?\n\nThis cannot be undone unless you exported a backup.`
+      );
+
+      if (!shouldDelete) return;
+
+      islands.splice(index, 1);
+
+      if (index < activeIslandIndex) {
+        activeIslandIndex--;
+      } else if (index === activeIslandIndex) {
+        activeIslandIndex = Math.min(index, islands.length - 1);
+      }
+
+      activeQuestionIndex = 0;
+      hidden = false;
+
+      saveData();
+      render();
+      showToast(`"${island.name}" was deleted.`);
+    });
+
+       const audioButton = document.createElement("button");
+    const isPlaying = playingIslandId === island.id;
+
+    audioButton.className =
+      `island-audio ${isPlaying ? "playing" : ""}`;
+
+    audioButton.type = "button";
+
+    audioButton.innerHTML =
+      `${formatDuration(islandDuration(island))} ${
+        isPlaying ? "■" : "▶"
+      }`;
+
+    audioButton.title = isPlaying
+      ? `Stop ${island.name}`
+      : `Play all Spanish from ${island.name}`;
+
+    audioButton.setAttribute(
+      "aria-label",
+      audioButton.title
+    );
+
+    audioButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+
+      if (playingIslandId === island.id) {
+        stopIslandPlayback(true);
+        showToast("Island playback stopped.");
+      } else {
+        playIsland(island);
+      }
+    });
+
+    wrapper.append(
+      button,
+      deleteButton,
+      audioButton
+    );
+
+    islandList.appendChild(wrapper);
+  });
+
+  updateDailyInputDisplay();
+}
+
+function renderQuestion() {
+  const island = activeIsland();
+  const question = activeQuestion();
+
+  levelPill.textContent = island.level;
+  counterPill.textContent = `${activeQuestionIndex + 1} / ${island.questions.length}`;
+  questionEs.textContent = question.es;
+  questionEn.textContent = question.en;
+  answerEs.textContent = question.answerEs;
+  answerEn.textContent = question.answerEn;
+
+  chunks.innerHTML = "";
+  question.chunks.forEach((chunkText) => {
+    const chip = document.createElement("button");
+    chip.className = "chunk";
+    chip.textContent = chunkText;
+    chip.title = "Click to hear this chunk";
+    chip.addEventListener("click", () => speak(chunkText));
+    chunks.appendChild(chip);
+  });
+
+  document.getElementById("wanted").value = question.notes || "";
+  mainCard.classList.toggle("hidden-answer", hidden || mode === "recall");
+}
+
+function renderRating() {
+  rating.innerHTML = "";
+  const current = activeQuestion().confidence || 1;
+
+  for (let i = 1; i <= 5; i += 1) {
+    const button = document.createElement("button");
+    button.textContent = i;
+    button.className = i === current ? "active" : "";
+    button.addEventListener("click", () => {
+      activeQuestion().confidence = i;
+      saveData();
+      render();
+      showToast(`Confidence saved: ${i}/5`);
+    });
+    rating.appendChild(button);
+  }
+}
+
+function sentenceList(text) {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+function stopIslandPlayback(recordTime = true) {
+  if (islandPlaybackTimer) {
+    clearTimeout(islandPlaybackTimer);
+    islandPlaybackTimer = null;
+  }
+
+  const hadPlayback = Boolean(playingIslandId);
+  playingIslandId = null;
+
+  if ("speechSynthesis" in window) {
+    speechSynthesis.cancel();
+  }
+
+  if (
+    recordTime &&
+    hadPlayback &&
+    islandPlaybackStartedAt
+  ) {
+    addDailyInput(
+      Date.now() - islandPlaybackStartedAt
+    );
+  }
+
+  islandPlaybackStartedAt = 0;
+  renderIslands();
+}
+
+function playIsland(island) {
+  if (!("speechSynthesis" in window)) {
+    showToast(
+      "This browser does not support speech."
+    );
+    return;
+  }
+
+  if (playingIslandId) {
+    stopIslandPlayback(true);
+  }
+
+  const segments = islandAudioSegments(island);
+
+  if (!segments.length) {
+    showToast(
+      "This island has no Spanish text to play."
+    );
+    return;
+  }
+
+  playingIslandId = island.id;
+  islandPlaybackStartedAt = Date.now();
+  renderIslands();
+
+  let segmentIndex = 0;
+
+  function playNextSegment() {
+    if (playingIslandId !== island.id) return;
+
+    if (segmentIndex >= segments.length) {
+      const elapsed =
+        Date.now() - islandPlaybackStartedAt;
+
+      addDailyInput(elapsed);
+
+      playingIslandId = null;
+      islandPlaybackStartedAt = 0;
+      islandPlaybackTimer = null;
+
+      renderIslands();
+
+      showToast(
+        `Finished ${island.name}. Today's input: ${
+          formatDuration(getDailyInput())
+        }.`
+      );
+
+      return;
+    }
+
+    const segment = segments[segmentIndex];
+
+    const utterance =
+      new SpeechSynthesisUtterance(segment.text);
+
+    utterance.lang = "es-ES";
+    utterance.rate = 0.82;
+    utterance.pitch = 1;
+
+    const selected = voices.find(
+      (voice) => voice.name === voiceSelect.value
+    );
+
+    if (selected) {
+      utterance.voice = selected;
+    }
+
+    utterance.onend = () => {
+      if (playingIslandId !== island.id) return;
+
+      segmentIndex += 1;
+
+      islandPlaybackTimer = setTimeout(
+        playNextSegment,
+        segment.pauseMs
+      );
+    };
+
+    utterance.onerror = () => {
+      if (playingIslandId !== island.id) return;
+
+      segmentIndex += 1;
+
+      islandPlaybackTimer = setTimeout(
+        playNextSegment,
+        300
+      );
+    };
+
+    speechSynthesis.speak(utterance);
+  }
+
+  playNextSegment();
+
+  showToast(
+    `Playing ${island.name} for shadowing.`
+  );
+}
+function speak(text) {
+  if (!("speechSynthesis" in window)) {
+    showToast("This browser does not support speech.");
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "es-ES";
+  utterance.rate = 0.86;
+  utterance.pitch = 1;
+
+  const selected = voices.find((voice) => voice.name === voiceSelect.value);
+  if (selected) utterance.voice = selected;
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utterance);
+}
+
+function shadow() {
+  const sentences = sentenceList(activeQuestion().answerEs);
+  let index = 0;
+
+  function nextSentence() {
+    if (index >= sentences.length) return;
+
+    const utterance = new SpeechSynthesisUtterance(sentences[index]);
+    utterance.lang = "es-ES";
+    utterance.rate = 0.82;
+
+    const selected = voices.find((voice) => voice.name === voiceSelect.value);
+    if (selected) utterance.voice = selected;
+
+    utterance.onend = () => {
+      index += 1;
+      setTimeout(nextSentence, 1600);
+    };
+
+    speechSynthesis.speak(utterance);
+  }
+
+  speechSynthesis.cancel();
+  nextSentence();
+  showToast("Shadow mode: repeat each sentence in the pause.");
+}
+
+function loadVoices() {
+  if (!("speechSynthesis" in window)) return;
+
+  voices = speechSynthesis.getVoices();
+  const spanishVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith("es"));
+  const usableVoices = spanishVoices.length ? spanishVoices : voices;
+
+  voiceSelect.innerHTML = "";
+
+  usableVoices.forEach((voice) => {
+    const option = document.createElement("option");
+    option.value = voice.name;
+    option.textContent = `${voice.name} · ${voice.lang}`;
+    voiceSelect.appendChild(option);
+  });
+
+  const preferred = usableVoices.find((voice) => voice.lang === "es-ES") || usableVoices[0];
+  if (preferred) voiceSelect.value = preferred.name;
+}
+
+function nextQuestion(step = 1) {
+  const total = activeIsland().questions.length;
+
+  activeQuestionIndex =
+    (activeQuestionIndex + step + total) % total;
+
+  hidden = false;
+  render();
+
+  if (shadowAutoPlay) {
+    setTimeout(shadow, 150);
+  }
+}
+
+function randomQuestion() {
+  const island = activeIsland();
+
+  if (island.questions.length <= 1) {
+    showToast("Add more questions to randomise this island.");
+    return;
+  }
+
+  let next = activeQuestionIndex;
+  while (next === activeQuestionIndex) {
+    next = Math.floor(Math.random() * island.questions.length);
+  }
+
+  activeQuestionIndex = next;
+  hidden = mode === "recall";
+  render();
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+document.getElementById("listenBtn").addEventListener("click", () => speak(activeQuestion().answerEs));
+document.getElementById("shadowBtn").addEventListener("click", () => {
+  shadowAutoPlay = !shadowAutoPlay;
+
+  const shadowButton =
+    document.getElementById("shadowBtn");
+
+  shadowButton.classList.toggle(
+    "shadow-active",
+    shadowAutoPlay
+  );
+
+  shadowButton.textContent =
+    shadowAutoPlay ? "Shadow On" : "Shadow";
+
+  if (shadowAutoPlay) {
+    shadow();
+    showToast(
+      "Shadow mode on: Next and Previous will play automatically."
+    );
+  } else {
+    speechSynthesis.cancel();
+    showToast("Shadow mode off.");
+  }
+});
+
+document.getElementById("hideBtn").addEventListener("click", () => {
+  hidden = !hidden;
+  renderQuestion();
+});
+
+document.getElementById("prevBtn").addEventListener("click", () => nextQuestion(-1));
+document.getElementById("nextBtn").addEventListener("click", () => nextQuestion(1));
+document.getElementById("randomBtn").addEventListener("click", randomQuestion);
+
+document.querySelectorAll(".mode").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".mode").forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+
+    mode = button.dataset.mode;
+    hidden = mode === "recall";
+
+    if (mode === "conversation") randomQuestion();
+    renderQuestion();
+  });
+});
+
+document.getElementById("addChunkBtn").addEventListener("click", () => {
+  const input = document.getElementById("newChunk");
+  const value = input.value.trim();
+
+  if (!value) return;
+
+  activeQuestion().chunks.push(value);
+  input.value = "";
+  saveData();
+  renderQuestion();
+  showToast("Chunk added to this question.");
+});
+
+document.getElementById("saveWantedBtn").addEventListener("click", () => {
+  activeQuestion().notes = document.getElementById("wanted").value.trim();
+  saveData();
+  showToast("Note saved.");
+});
+
+document.getElementById("addQuestionBtn").addEventListener("click", () => {
+  const es = document.getElementById("newQuestionEs").value.trim();
+  const en = document.getElementById("newQuestionEn").value.trim();
+  const answerEsValue = document.getElementById("newAnswerEs").value.trim();
+  const answerEnValue = document.getElementById("newAnswerEn").value.trim();
+  const chunkValue = document.getElementById("newQuestionChunks").value.trim();
+
+  if (!es || !answerEsValue) {
+    showToast("Add at least a Spanish question and answer.");
+    return;
+  }
+
+  activeIsland().questions.push({
+    es,
+    en: en || "New speaking prompt",
+    answerEs: answerEsValue,
+    answerEn: answerEnValue || "",
+    chunks: chunkValue ? chunkValue.split(",").map((item) => item.trim()).filter(Boolean) : [],
+    confidence: 1,
+    notes: ""
+  });
+
+  activeQuestionIndex = activeIsland().questions.length - 1;
+
+  ["newQuestionEs", "newQuestionEn", "newAnswerEs", "newAnswerEn", "newQuestionChunks"].forEach((id) => {
+    document.getElementById(id).value = "";
+  });
+
+  saveData();
+  render();
+  showToast("Question added to this island.");
+});
+
+document.getElementById("newIslandBtn").addEventListener("click", () => {
+  const name = prompt("Name your new island:", "Travel");
+  if (!name || !name.trim()) return;
+
+  islands.push({
+    id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    name: name.trim(),
+    level: "Level 0 · Draft island",
+    questions: [
+      {
+        es: "¿Puedes hablar de este tema?",
+        en: "Can you talk about this topic?",
+        answerEs: "Todavía estoy construyendo esta isla, pero puedo empezar con una respuesta sencilla.",
+        answerEn: "I am still building this island, but I can start with a simple answer.",
+        chunks: ["estoy construyendo...", "puedo empezar con...", "una respuesta sencilla"],
+        confidence: 1,
+        notes: ""
+      }
+    ]
+  });
+
+  activeIslandIndex = islands.length - 1;
+  activeQuestionIndex = 0;
+  saveData();
+  render();
+  showToast("New island created.");
+});
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(islands, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "spanish-islands.json";
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importBtn").addEventListener("click", () => {
+  document.getElementById("importFile").click();
+});
+
+document.getElementById("importFile").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!Array.isArray(imported)) throw new Error("Invalid file");
+      islands = imported;
+      activeIslandIndex = 0;
+      activeQuestionIndex = 0;
+      saveData();
+      render();
+      showToast("Islands imported.");
+    } catch {
+      showToast("That import file was not recognised.");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+});
+document.getElementById("importCsvBtn").addEventListener("click", () => {
+  document.getElementById("csvFile").click();
+});
+
+document.getElementById("csvFile").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const rows = parseCsv(reader.result);
+      const defaultName = file.name.replace(/\.[^/.]+$/, "") || "Imported Island";
+      const islandName = prompt("Name this island:", defaultName);
+
+      if (!islandName || !islandName.trim()) {
+        showToast("CSV import cancelled.");
+        return;
+      }
+
+      importExcelStyleIsland(rows, islandName.trim());
+
+      activeIslandIndex = islands.findIndex(
+        (island) => island.name.toLowerCase() === islandName.trim().toLowerCase()
+      );
+
+      activeQuestionIndex = 0;
+      saveData();
+      render();
+      showToast("CSV island imported.");
+    } catch (error) {
+      console.error(error);
+      showToast("CSV import failed. Check your file format.");
+    }
+  };
+
+  reader.readAsText(file);
+  event.target.value = "";
+});
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && insideQuotes && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === "," && !insideQuotes) {
+      row.push(cell.trim());
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (cell || row.length) {
+        row.push(cell.trim());
+        rows.push(row);
+      }
+
+      row = [];
+      cell = "";
+
+      if (char === "\r" && next === "\n") i++;
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell.trim());
+    rows.push(row);
+  }
+
+  return rows.filter((row) => row.some((cell) => cell));
+}
+
+function importExcelStyleIsland(rows, islandName) {
+  const cards = [];
+
+  const headers = (rows[0] || []).map((value) =>
+    value
+      .replace(/^\uFEFF/, "")
+      .toLowerCase()
+      .replace(/[^a-z]+/g, " ")
+      .trim()
+  );
+
+  function findColumn(contentType, language) {
+    return headers.findIndex((header) => {
+      const words = header.split(/\s+/);
+
+      const correctType =
+        contentType === "question"
+          ? words.includes("question") || words.includes("prompt")
+          : words.includes("answer") ||
+            words.includes("response") ||
+            words.includes("reply");
+
+      const correctLanguage =
+        language === "english"
+          ? words.includes("english") || words.includes("en")
+          : words.includes("spanish") || words.includes("es");
+
+      return correctType && correctLanguage;
+    });
+  }
+
+  const questionEnColumn = findColumn("question", "english");
+  const questionEsColumn = findColumn("question", "spanish");
+  const answerEnColumn = findColumn("answer", "english");
+  const answerEsColumn = findColumn("answer", "spanish");
+
+  const isCardPerRowCsv =
+    questionEnColumn !== -1 &&
+    questionEsColumn !== -1 &&
+    answerEnColumn !== -1 &&
+    answerEsColumn !== -1;
+
+  if (isCardPerRowCsv) {
+    rows.slice(1).forEach((row) => {
+      const questionEn = (row[questionEnColumn] || "").trim();
+      const questionEs = (row[questionEsColumn] || "").trim();
+      const answerEn = (row[answerEnColumn] || "").trim();
+      const answerEs = (row[answerEsColumn] || "").trim();
+
+      if (!questionEs || !answerEs) return;
+
+      cards.push({
+        es: questionEs,
+        en: questionEn,
+        answerEs,
+        answerEn,
+        chunks: [answerEs],
+        confidence: 1,
+        notes: ""
+      });
+    });
+  } else {
+    let currentQuestionEn = "";
+    let currentQuestionEs = "";
+
+    rows.forEach((row) => {
+      const english = (row[0] || "")
+        .replace(/^\uFEFF/, "")
+        .trim();
+
+      const spanish = (row[1] || "").trim();
+
+      if (!english && !spanish) return;
+
+      const looksLikeQuestion =
+        english.includes("?") ||
+        spanish.includes("?") ||
+        spanish.includes("¿");
+
+      if (looksLikeQuestion) {
+        currentQuestionEn = english;
+        currentQuestionEs = spanish;
+        return;
+      }
+
+      if (currentQuestionEs && spanish) {
+        cards.push({
+          es: currentQuestionEs,
+          en: currentQuestionEn,
+          answerEs: spanish,
+          answerEn: english,
+          chunks: [spanish],
+          confidence: 1,
+          notes: ""
+        });
+      }
+    });
+  }
+
+  if (!cards.length) {
+    throw new Error("No cards found in CSV.");
+  }
+
+  const existingIndex = islands.findIndex(
+    (island) => island.name.toLowerCase() === islandName.toLowerCase()
+  );
+
+  const importedIsland = {
+    id: islandName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    name: islandName,
+    level: "Level 0 · Imported island",
+    questions: cards
+  };
+
+  if (existingIndex !== -1) {
+    const shouldReplace = confirm(
+      `"${islandName}" already exists. Replace it with this CSV import?`
+    );
+
+    if (shouldReplace) {
+      islands[existingIndex] = importedIsland;
+    } else {
+      islands.push({
+        ...importedIsland,
+        id: `${importedIsland.id}-${Date.now()}`,
+        name: `${islandName} Copy`
+      });
+    }
+  } else {
+    islands.push(importedIsland);
+  }
+}
+if ("speechSynthesis" in window) {
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+render();
+
+</script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .catch((error) => {
+        console.error("Service worker registration failed:", error);
+      });
+  });
+}
+</script>
 </body>
 </html>
