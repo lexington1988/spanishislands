@@ -53,12 +53,76 @@ select {
 button {
   cursor: pointer;
 }
+.menu-wrap {
+  position: relative;
+}
 
+.icon-btn {
+  min-width: 44px;
+  padding: 0 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.app-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1001;
+  min-width: 185px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 250, 0.98);
+  box-shadow: 0 18px 45px rgba(8, 73, 77, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.app-menu button {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 11px;
+  padding: 9px 11px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-weight: 750;
+}
+
+.app-menu button:hover,
+.app-menu button:focus-visible {
+  background: var(--sea-soft);
+  color: var(--sea-dark);
+}
+
+@media (max-width: 720px) {
+  .top-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+  }
+
+  .top-actions .btn {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .menu-wrap {
+    margin-left: auto;
+  }
+
+  .app-menu {
+    right: 0;
+  }
+}
 .app {
   min-height: 100vh;
 }
 
 .topbar {
+  position: relative;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -114,6 +178,12 @@ h1 {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+.top-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
 
 .btn {
   min-height: 42px;
@@ -275,9 +345,85 @@ h1 {
 }
 
 .daily-input {
-  margin-top: 5px;
+  margin-top: 14px;
+}
+
+.daily-card {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 250, 0.62);
+  box-shadow: 0 12px 28px rgba(8, 73, 77, 0.08);
+}
+
+.daily-row,
+.daily-goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.daily-label {
+  color: var(--sea-dark);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.daily-time {
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.daily-icon {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15, 107, 110, 0.18);
+  border-radius: 10px;
+  color: var(--sea-dark);
+  background: rgba(216, 238, 234, 0.7);
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.daily-icon:hover,
+.daily-icon:focus-visible {
+  background: rgba(216, 238, 234, 1);
+  transform: translateY(-1px);
+}
+
+.daily-goal-row {
+  margin-top: 12px;
   color: var(--muted);
   font-size: 12px;
+  font-weight: 800;
+}
+
+.daily-progress {
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(15, 107, 110, 0.12);
+}
+
+.daily-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sea);
+  transition: width 240ms ease;
 }
 .main-card {
   min-height: 690px;
@@ -479,7 +625,105 @@ textarea {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+.main-card {
+  position: relative;
+}
 
+.card-tools {
+  position: absolute;
+  top: clamp(22px, 4vw, 36px);
+  right: calc(clamp(22px, 4vw, 36px) + 66px);
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+}
+
+.card-icon-btn {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 50%;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(8px);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.card-icon-btn:hover,
+.card-icon-btn:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.card-icon-btn.delete:hover,
+.card-icon-btn.delete:focus-visible {
+  color: #fff;
+  background: rgba(184, 74, 61, 0.78);
+  border-color: rgba(184, 74, 61, 0.3);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(8, 73, 77, 0.38);
+  backdrop-filter: blur(8px);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal-card {
+  width: min(620px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 250, 0.98);
+  box-shadow: 0 30px 90px rgba(8, 73, 77, 0.28);
+}
+
+.modal-head {
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h2 {
+  margin: 5px 0 0;
+  font-size: 24px;
+}
+
+.modal-body {
+  padding: 18px 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.modal-actions {
+  padding: 16px 20px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+}
+
+.modal-body textarea {
+  min-height: 96px;
+}
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
@@ -552,14 +796,25 @@ textarea {
     </div>
 
     <div class="top-actions">
-      <button id="newIslandBtn" class="btn soft">New Island</button>
-      <button id="exportBtn" class="btn soft">Export</button>
-<button id="importBtn" class="btn soft">Import JSON</button>
-<button id="importCsvBtn" class="btn soft">Import CSV</button>
-<button id="randomBtn" class="btn primary">Random Question</button>
-<input id="importFile" type="file" accept="application/json" hidden>
-<input id="csvFile" type="file" accept=".csv,text/csv" hidden>
-    </div>
+  <button id="newIslandBtn" class="btn soft">New Island</button>
+  <button id="randomBtn" class="btn primary">Random Question</button>
+
+  <div class="menu-wrap">
+    <button id="menuBtn" class="btn icon-btn" type="button" aria-label="Open menu">
+      •••
+    </button>
+
+    <div id="appMenu" class="app-menu" hidden>
+  <button id="settingsBtn" type="button">Settings</button>
+  <button id="exportBtn" type="button">Export Backup</button>
+  <button id="importBtn" type="button">Import JSON</button>
+  <button id="importCsvBtn" type="button">Import CSV</button>
+</div>
+  </div>
+
+  <input id="importFile" type="file" accept="application/json" hidden>
+  <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+</div>
   </header>
 
   <main class="layout">
@@ -567,7 +822,29 @@ textarea {
       <div class="panel-head">
   <span class="eyebrow">Active islands</span>
   <h2>Choose a topic</h2>
-  <div id="dailyInput" class="daily-input">Today: 0:00 input</div>
+  <div id="dailyInput" class="daily-input">
+  <div class="daily-card">
+    <div class="daily-row">
+      <div>
+        <div class="daily-label">Today’s input</div>
+        <div id="dailyTime" class="daily-time">0:00</div>
+      </div>
+
+      <button id="dailyGoalBtn" class="daily-icon" type="button" title="Change daily goal" aria-label="Change daily goal">
+  ⏱
+</button>
+    </div>
+
+    <div class="daily-goal-row">
+      <span id="dailyGoalText">Goal: 20:00</span>
+      <span id="dailyPercentText">0%</span>
+    </div>
+
+    <div class="daily-progress">
+      <div id="dailyProgressBar" class="daily-progress-bar"></div>
+    </div>
+  </div>
+</div>
 </div>
       <div id="islandList" class="island-list"></div>
     </aside>
@@ -589,12 +866,21 @@ textarea {
           <p id="answerEn" class="answer-en"></p>
 
           <div class="button-row">
-            <button id="listenBtn" class="btn primary">Listen</button>
-            <button id="shadowBtn" class="btn soft">Shadow</button>
-            <button id="hideBtn" class="btn soft">Hide Spanish</button>
-            <button id="prevBtn" class="btn soft">Previous</button>
-            <button id="nextBtn" class="btn soft">Next</button>
-          </div>
+  <button id="listenBtn" class="btn primary">Listen</button>
+  <button id="shadowBtn" class="btn soft">Shadow</button>
+  <button id="hideBtn" class="btn soft">Hide Spanish</button>
+  <button id="prevBtn" class="btn soft">Previous</button>
+  <button id="nextBtn" class="btn soft">Next</button>
+</div>
+
+<div class="card-tools" aria-label="Card tools">
+  <button id="editCardBtn" class="card-icon-btn edit" type="button" title="Edit card" aria-label="Edit card">
+    ✎
+  </button>
+  <button id="deleteCardBtn" class="card-icon-btn delete" type="button" title="Delete card" aria-label="Delete card">
+    ×
+  </button>
+</div>
         </section>
 
         <section class="chunk-area">
@@ -662,7 +948,71 @@ textarea {
 </div>
 
 <div id="toast" class="toast"></div>
+  <div id="settingsModal" class="modal-backdrop" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-head">
+      <span class="eyebrow">App settings</span>
+      <h2 id="settingsTitle">Settings</h2>
+    </div>
 
+    <div class="modal-body">
+      <label for="settingVoiceRate">Voice rate</label>
+      <input id="settingVoiceRate" type="range" min="0.6" max="1.2" step="0.02">
+      <p id="settingVoiceRateText" class="hint">Voice rate: 0.86</p>
+
+      <label for="settingShadowPause">Shadow pause length</label>
+      <input id="settingShadowPause" type="range" min="500" max="3500" step="100">
+      <p id="settingShadowPauseText" class="hint">Shadow pause: 1600ms</p>
+
+      <label for="settingDailyGoal">Daily input goal</label>
+      <input id="settingDailyGoal" type="number" min="1" step="1" placeholder="Goal in minutes">
+
+      <button id="resetTodayInputBtn" class="btn soft full" type="button">
+        Reset Today’s Input
+      </button>
+
+      <p class="hint">
+        These settings are saved on this device.
+      </p>
+    </div>
+
+    <div class="modal-actions">
+      <button id="cancelSettingsBtn" class="btn soft" type="button">Cancel</button>
+      <button id="saveSettingsBtn" class="btn primary" type="button">Save Settings</button>
+    </div>
+  </div>
+</div>
+<div id="editCardModal" class="modal-backdrop" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editCardTitle">
+    <div class="modal-head">
+      <span class="eyebrow">Card editor</span>
+      <h2 id="editCardTitle">Edit this card</h2>
+    </div>
+
+    <div class="modal-body">
+      <label for="editQuestionEs">Spanish question</label>
+      <input id="editQuestionEs" placeholder="Spanish question">
+
+      <label for="editQuestionEn">English question</label>
+      <input id="editQuestionEn" placeholder="English question">
+
+      <label for="editAnswerEs">Spanish answer</label>
+      <textarea id="editAnswerEs" placeholder="Spanish model answer"></textarea>
+
+      <label for="editAnswerEn">English answer</label>
+      <textarea id="editAnswerEn" placeholder="English meaning"></textarea>
+
+      <label for="editChunks">Chunks</label>
+      <input id="editChunks" placeholder="Chunks separated by commas">
+      <p class="hint">Separate chunks with commas, for example: Soy auditor, trabajo como, revisar el trabajo</p>
+    </div>
+
+    <div class="modal-actions">
+      <button id="cancelEditCardBtn" class="btn soft" type="button">Cancel</button>
+      <button id="saveEditCardBtn" class="btn primary" type="button">Save Card</button>
+    </div>
+  </div>
+</div>
 <script>
 const starterData = [
   {
@@ -755,7 +1105,9 @@ let voices = [];
 let playingIslandId = null;
 let islandPlaybackStartedAt = 0;
 let islandPlaybackTimer = null;
-
+let practicePlaybackStartedAt = 0;
+let practicePlaybackTimer = null;
+let practicePlaybackToken = 0;
 const islandList = document.getElementById("islandList");
 const mainCard = document.getElementById("mainCard");
 const levelPill = document.getElementById("levelPill");
@@ -769,6 +1121,128 @@ const rating = document.getElementById("rating");
 const voiceSelect = document.getElementById("voiceSelect");
 const toast = document.getElementById("toast");
 const dailyInput = document.getElementById("dailyInput");
+const dailyTime = document.getElementById("dailyTime");
+const dailyGoalText = document.getElementById("dailyGoalText");
+const dailyPercentText = document.getElementById("dailyPercentText");
+const dailyProgressBar = document.getElementById("dailyProgressBar");
+const dailyGoalBtn = document.getElementById("dailyGoalBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsModal = document.getElementById("settingsModal");
+const settingVoiceRate = document.getElementById("settingVoiceRate");
+const settingVoiceRateText = document.getElementById("settingVoiceRateText");
+const settingShadowPause = document.getElementById("settingShadowPause");
+const settingShadowPauseText = document.getElementById("settingShadowPauseText");
+const settingDailyGoal = document.getElementById("settingDailyGoal");
+const resetTodayInputBtn = document.getElementById("resetTodayInputBtn");
+const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
+const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+
+const settingsStorageKey = "spanish-islands-settings-v1";
+
+let appSettings = loadSettings();
+const dailyGoalStorageKey = "spanish-islands-daily-goal-v1";
+let dailyGoalMs = getDailyGoalMs();
+
+const editCardModal = document.getElementById("editCardModal");
+const editQuestionEs = document.getElementById("editQuestionEs");
+const editQuestionEn = document.getElementById("editQuestionEn");
+const editAnswerEs = document.getElementById("editAnswerEs");
+const editAnswerEn = document.getElementById("editAnswerEn");
+const editChunks = document.getElementById("editChunks");
+  function loadSettings() {
+  const defaults = {
+    voiceRate: 0.86,
+    shadowPauseMs: 1600
+  };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(settingsStorageKey)) || {};
+    return {
+      ...defaults,
+      ...saved
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveSettingsToStorage() {
+  localStorage.setItem(
+    settingsStorageKey,
+    JSON.stringify(appSettings)
+  );
+}
+
+function openSettingsModal() {
+  settingVoiceRate.value = appSettings.voiceRate;
+  settingVoiceRateText.textContent = `Voice rate: ${Number(appSettings.voiceRate).toFixed(2)}`;
+
+  settingShadowPause.value = appSettings.shadowPauseMs;
+  settingShadowPauseText.textContent = `Shadow pause: ${appSettings.shadowPauseMs}ms`;
+
+  settingDailyGoal.value = Math.round(dailyGoalMs / 60000);
+
+  settingsModal.hidden = false;
+  appMenu.hidden = true;
+}
+
+function closeSettingsModal() {
+  settingsModal.hidden = true;
+}
+
+function saveSettingsFromModal() {
+  const voiceRate = Number(settingVoiceRate.value);
+  const shadowPauseMs = Number(settingShadowPause.value);
+  const dailyGoalMinutes = Number(settingDailyGoal.value);
+
+  if (!Number.isFinite(voiceRate) || voiceRate <= 0) {
+    showToast("Voice rate is not valid.");
+    return;
+  }
+
+  if (!Number.isFinite(shadowPauseMs) || shadowPauseMs < 500) {
+    showToast("Shadow pause is not valid.");
+    return;
+  }
+
+  if (!Number.isFinite(dailyGoalMinutes) || dailyGoalMinutes <= 0) {
+    showToast("Daily goal is not valid.");
+    return;
+  }
+
+  appSettings.voiceRate = voiceRate;
+  appSettings.shadowPauseMs = shadowPauseMs;
+
+  dailyGoalMs = Math.round(dailyGoalMinutes * 60 * 1000);
+
+  localStorage.setItem(
+    dailyGoalStorageKey,
+    String(dailyGoalMs)
+  );
+
+  saveSettingsToStorage();
+  updateDailyInputDisplay();
+  closeSettingsModal();
+
+  showToast("Settings saved.");
+}
+
+function resetTodayInput() {
+  const shouldReset = confirm("Reset today’s input time to 0:00?");
+
+  if (!shouldReset) return;
+
+  localStorage.setItem(
+    inputStorageKey,
+    JSON.stringify({
+      date: todayKey(),
+      milliseconds: 0
+    })
+  );
+
+  updateDailyInputDisplay();
+  showToast("Today’s input has been reset.");
+}
 function todayKey() {
   const now = new Date();
   const year = now.getFullYear();
@@ -777,7 +1251,44 @@ function todayKey() {
 
   return `${year}-${month}-${day}`;
 }
+function getDailyGoalMs() {
+  const savedGoal = Number(localStorage.getItem(dailyGoalStorageKey));
+  const defaultGoal = 20 * 60 * 1000;
 
+  if (!Number.isFinite(savedGoal) || savedGoal <= 0) {
+    return defaultGoal;
+  }
+
+  return savedGoal;
+}
+
+function setDailyGoal() {
+  const currentMinutes = Math.round(dailyGoalMs / 60000);
+
+  const value = prompt(
+    "Set your daily input goal in minutes:",
+    String(currentMinutes)
+  );
+
+  if (value === null) return;
+
+  const minutes = Number(value);
+
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    showToast("Please enter a valid number of minutes.");
+    return;
+  }
+
+  dailyGoalMs = Math.round(minutes * 60 * 1000);
+
+  localStorage.setItem(
+    dailyGoalStorageKey,
+    String(dailyGoalMs)
+  );
+
+  updateDailyInputDisplay();
+  showToast(`Daily goal set to ${formatDuration(dailyGoalMs)}.`);
+}
 function getDailyInput() {
   try {
     const saved =
@@ -819,8 +1330,18 @@ function formatDuration(milliseconds) {
 }
 
 function updateDailyInputDisplay() {
-  dailyInput.textContent =
-    `Today: ${formatDuration(getDailyInput())} input`;
+  const currentInput = getDailyInput();
+  const progressPercent = Math.min(
+    100,
+    Math.round((currentInput / dailyGoalMs) * 100)
+  );
+
+  dailyTime.textContent = formatDuration(currentInput);
+  dailyGoalText.textContent = `Goal: ${formatDuration(dailyGoalMs)}`;
+  dailyPercentText.textContent = `${progressPercent}%`;
+  dailyProgressBar.style.width = `${progressPercent}%`;
+
+  dailyInput.title = `Today’s input: ${formatDuration(currentInput)} / ${formatDuration(dailyGoalMs)}`;
 }
 
 function estimatedSpeechMs(text) {
@@ -865,9 +1386,7 @@ function islandAudioSegments(island) {
     addSegment(question.es, "question");
     addSegment(question.answerEs, "answer");
 
-    (question.chunks || []).forEach((chunk) => {
-      addSegment(chunk, "chunk");
-    });
+    
   });
 
   return segments;
@@ -951,33 +1470,44 @@ function renderIslands() {
     deleteButton.title = `Delete ${island.name}`;
     deleteButton.setAttribute("aria-label", `Delete ${island.name}`);
 
-    deleteButton.addEventListener("click", () => {
-      if (islands.length === 1) {
-        showToast("You must keep at least one island.");
-        return;
-      }
+deleteButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
 
-      const shouldDelete = confirm(
-        `Delete "${island.name}" and all ${island.questions.length} cards?\n\nThis cannot be undone unless you exported a backup.`
-      );
+  if (islands.length === 1) {
+    showToast("You must keep at least one island.");
+    return;
+  }
 
-      if (!shouldDelete) return;
+  const islandNameToDelete = island.name;
+  const cardCount = island.questions.length;
 
-      islands.splice(index, 1);
+  const shouldDelete = confirm(
+    `Delete "${islandNameToDelete}" and all ${cardCount} cards?\n\nThis cannot be undone unless you exported a backup.`
+  );
 
-      if (index < activeIslandIndex) {
-        activeIslandIndex--;
-      } else if (index === activeIslandIndex) {
-        activeIslandIndex = Math.min(index, islands.length - 1);
-      }
+  if (!shouldDelete) return;
 
-      activeQuestionIndex = 0;
-      hidden = false;
+  islands.splice(index, 1);
 
-      saveData();
-      render();
-      showToast(`"${island.name}" was deleted.`);
-    });
+  if (activeIslandIndex === index) {
+    activeIslandIndex = Math.min(index, islands.length - 1);
+  } else if (activeIslandIndex > index) {
+    activeIslandIndex -= 1;
+  }
+
+  activeQuestionIndex = 0;
+  hidden = false;
+
+  if (playingIslandId === island.id) {
+    stopIslandPlayback(false);
+  }
+
+  saveData();
+  render();
+
+  showToast(`"${islandNameToDelete}" was deleted.`);
+});
 
        const audioButton = document.createElement("button");
     const isPlaying = playingIslandId === island.id;
@@ -1073,6 +1603,56 @@ function sentenceList(text) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+  function beginPracticePlayback() {
+  stopPracticePlayback(true);
+
+  practicePlaybackStartedAt = Date.now();
+  practicePlaybackToken += 1;
+
+  return practicePlaybackToken;
+}
+
+function finishPracticePlayback(token) {
+  if (
+    token !== practicePlaybackToken ||
+    !practicePlaybackStartedAt
+  ) {
+    return;
+  }
+
+  const elapsed =
+    Date.now() - practicePlaybackStartedAt;
+
+  practicePlaybackStartedAt = 0;
+  practicePlaybackToken += 1;
+
+  if (practicePlaybackTimer) {
+    clearTimeout(practicePlaybackTimer);
+    practicePlaybackTimer = null;
+  }
+
+  addDailyInput(elapsed);
+}
+
+function stopPracticePlayback(recordTime = true) {
+  const startedAt = practicePlaybackStartedAt;
+
+  practicePlaybackStartedAt = 0;
+  practicePlaybackToken += 1;
+
+  if (practicePlaybackTimer) {
+    clearTimeout(practicePlaybackTimer);
+    practicePlaybackTimer = null;
+  }
+
+  if ("speechSynthesis" in window) {
+    speechSynthesis.cancel();
+  }
+
+  if (recordTime && startedAt) {
+    addDailyInput(Date.now() - startedAt);
+  }
+}
 function stopIslandPlayback(recordTime = true) {
   if (islandPlaybackTimer) {
     clearTimeout(islandPlaybackTimer);
@@ -1108,9 +1688,13 @@ function playIsland(island) {
     return;
   }
 
-  if (playingIslandId) {
-    stopIslandPlayback(true);
-  }
+  if (practicePlaybackStartedAt) {
+  stopPracticePlayback(true);
+}
+
+if (playingIslandId) {
+  stopIslandPlayback(true);
+}
 
   const segments = islandAudioSegments(island);
 
@@ -1157,7 +1741,7 @@ function playIsland(island) {
       new SpeechSynthesisUtterance(segment.text);
 
     utterance.lang = "es-ES";
-    utterance.rate = 0.82;
+    utterance.rate = appSettings.voiceRate;
     utterance.pitch = 1;
 
     const selected = voices.find(
@@ -1205,43 +1789,115 @@ function speak(text) {
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(text);
+  if (playingIslandId) {
+    stopIslandPlayback(true);
+  }
+
+  const token = beginPracticePlayback();
+
+  const utterance =
+    new SpeechSynthesisUtterance(text);
+
   utterance.lang = "es-ES";
-  utterance.rate = 0.86;
+  utterance.rate = appSettings.voiceRate;
   utterance.pitch = 1;
 
-  const selected = voices.find((voice) => voice.name === voiceSelect.value);
-  if (selected) utterance.voice = selected;
+  const selected = voices.find(
+    (voice) => voice.name === voiceSelect.value
+  );
 
-  speechSynthesis.cancel();
+  if (selected) {
+    utterance.voice = selected;
+  }
+
+  utterance.onend = () => {
+    finishPracticePlayback(token);
+  };
+
+  utterance.onerror = () => {
+    finishPracticePlayback(token);
+  };
+
   speechSynthesis.speak(utterance);
 }
 
 function shadow() {
-  const sentences = sentenceList(activeQuestion().answerEs);
-  let index = 0;
+  if (!("speechSynthesis" in window)) {
+    showToast("This browser does not support speech.");
+    return;
+  }
+
+  if (playingIslandId) {
+    stopIslandPlayback(true);
+  }
+
+  const sentences =
+    sentenceList(activeQuestion().answerEs);
+
+  const token = beginPracticePlayback();
+  let sentenceIndex = 0;
 
   function nextSentence() {
-    if (index >= sentences.length) return;
+    if (token !== practicePlaybackToken) {
+      return;
+    }
 
-    const utterance = new SpeechSynthesisUtterance(sentences[index]);
+    if (sentenceIndex >= sentences.length) {
+      finishPracticePlayback(token);
+      return;
+    }
+
+    const utterance =
+      new SpeechSynthesisUtterance(
+        sentences[sentenceIndex]
+      );
+
     utterance.lang = "es-ES";
-    utterance.rate = 0.82;
+    utterance.rate = appSettings.voiceRate;
+    utterance.pitch = 1;
 
-    const selected = voices.find((voice) => voice.name === voiceSelect.value);
-    if (selected) utterance.voice = selected;
+    const selected = voices.find(
+      (voice) => voice.name === voiceSelect.value
+    );
+
+    if (selected) {
+      utterance.voice = selected;
+    }
 
     utterance.onend = () => {
-      index += 1;
-      setTimeout(nextSentence, 1600);
+      if (token !== practicePlaybackToken) {
+        return;
+      }
+
+      sentenceIndex += 1;
+
+      practicePlaybackTimer = setTimeout(
+  nextSentence,
+  appSettings.shadowPauseMs
+);
+    };
+
+    utterance.onerror = () => {
+      if (token !== practicePlaybackToken) {
+        return;
+      }
+
+      sentenceIndex += 1;
+
+      practicePlaybackTimer = setTimeout(
+        nextSentence,
+        300
+      );
     };
 
     speechSynthesis.speak(utterance);
   }
 
-  speechSynthesis.cancel();
   nextSentence();
-  showToast("Shadow mode: repeat each sentence in the pause.");
+
+  showToast(
+    "Shadow mode: repeat each sentence in the pause."
+  );
 }
 
 function loadVoices() {
@@ -1301,7 +1957,115 @@ function showToast(message) {
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2200);
 }
+function openEditCardModal() {
+  const question = activeQuestion();
 
+  editQuestionEs.value = question.es || "";
+  editQuestionEn.value = question.en || "";
+  editAnswerEs.value = question.answerEs || "";
+  editAnswerEn.value = question.answerEn || "";
+  editChunks.value = Array.isArray(question.chunks)
+    ? question.chunks.join(", ")
+    : "";
+
+  editCardModal.hidden = false;
+
+  setTimeout(() => {
+    editQuestionEs.focus();
+  }, 50);
+}
+
+function closeEditCardModal() {
+  editCardModal.hidden = true;
+}
+
+function saveEditedCard() {
+  const question = activeQuestion();
+
+  const updatedQuestionEs = editQuestionEs.value.trim();
+  const updatedAnswerEs = editAnswerEs.value.trim();
+
+  if (!updatedQuestionEs || !updatedAnswerEs) {
+    showToast("Add at least a Spanish question and answer.");
+    return;
+  }
+
+  question.es = updatedQuestionEs;
+  question.en = editQuestionEn.value.trim() || "New speaking prompt";
+  question.answerEs = updatedAnswerEs;
+  question.answerEn = editAnswerEn.value.trim();
+  question.chunks = editChunks.value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  saveData();
+  closeEditCardModal();
+  render();
+
+  showToast("Card updated.");
+}
+
+function deleteCurrentCard() {
+  const island = activeIsland();
+
+  if (island.questions.length === 1) {
+    showToast("You must keep at least one card in this island.");
+    return;
+  }
+
+  const question = activeQuestion();
+
+  const shouldDelete = confirm(
+    `Delete this card?\n\n"${question.es}"\n\nThis cannot be undone unless you exported a backup.`
+  );
+
+  if (!shouldDelete) return;
+
+  island.questions.splice(activeQuestionIndex, 1);
+
+  if (activeQuestionIndex >= island.questions.length) {
+    activeQuestionIndex = island.questions.length - 1;
+  }
+
+  hidden = false;
+
+  saveData();
+  render();
+
+  showToast("Card deleted.");
+}
+  dailyGoalBtn.addEventListener("click", setDailyGoal);
+  settingsBtn.addEventListener("click", openSettingsModal);
+cancelSettingsBtn.addEventListener("click", closeSettingsModal);
+saveSettingsBtn.addEventListener("click", saveSettingsFromModal);
+resetTodayInputBtn.addEventListener("click", resetTodayInput);
+
+settingVoiceRate.addEventListener("input", () => {
+  settingVoiceRateText.textContent =
+    `Voice rate: ${Number(settingVoiceRate.value).toFixed(2)}`;
+});
+
+settingShadowPause.addEventListener("input", () => {
+  settingShadowPauseText.textContent =
+    `Shadow pause: ${settingShadowPause.value}ms`;
+});
+
+settingsModal.addEventListener("click", (event) => {
+  if (event.target === settingsModal) {
+    closeSettingsModal();
+  }
+});
+  document.getElementById("editCardBtn").addEventListener("click", openEditCardModal);
+document.getElementById("deleteCardBtn").addEventListener("click", deleteCurrentCard);
+document.getElementById("cancelEditCardBtn").addEventListener("click", closeEditCardModal);
+document.getElementById("saveEditCardBtn").addEventListener("click", saveEditedCard);
+
+editCardModal.addEventListener("click", (event) => {
+  if (event.target === editCardModal) {
+    closeEditCardModal();
+  }
+});
 document.getElementById("listenBtn").addEventListener("click", () => speak(activeQuestion().answerEs));
 document.getElementById("shadowBtn").addEventListener("click", () => {
   shadowAutoPlay = !shadowAutoPlay;
@@ -1323,9 +2087,9 @@ document.getElementById("shadowBtn").addEventListener("click", () => {
       "Shadow mode on: Next and Previous will play automatically."
     );
   } else {
-    speechSynthesis.cancel();
-    showToast("Shadow mode off.");
-  }
+  stopPracticePlayback(true);
+  showToast("Shadow mode off.");
+}
 });
 
 document.getElementById("hideBtn").addEventListener("click", () => {
@@ -1336,6 +2100,30 @@ document.getElementById("hideBtn").addEventListener("click", () => {
 document.getElementById("prevBtn").addEventListener("click", () => nextQuestion(-1));
 document.getElementById("nextBtn").addEventListener("click", () => nextQuestion(1));
 document.getElementById("randomBtn").addEventListener("click", randomQuestion);
+const menuBtn = document.getElementById("menuBtn");
+const appMenu = document.getElementById("appMenu");
+
+menuBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  appMenu.hidden = !appMenu.hidden;
+});
+
+appMenu.addEventListener("click", (event) => {
+  event.stopPropagation();
+});
+
+document.addEventListener("click", () => {
+  appMenu.hidden = true;
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    appMenu.hidden = true;
+    closeEditCardModal();
+    closeSettingsModal();
+  }
+});
 
 document.querySelectorAll(".mode").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1440,8 +2228,18 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-document.getElementById("importBtn").addEventListener("click", () => {
-  document.getElementById("importFile").click();
+document.getElementById("importBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const importInput = document.getElementById("importFile");
+
+  if (appMenu) {
+    appMenu.hidden = true;
+  }
+
+  importInput.value = "";
+  importInput.click();
 });
 
 document.getElementById("importFile").addEventListener("change", (event) => {
@@ -1466,12 +2264,27 @@ document.getElementById("importFile").addEventListener("change", (event) => {
   reader.readAsText(file);
   event.target.value = "";
 });
-document.getElementById("importCsvBtn").addEventListener("click", () => {
-  document.getElementById("csvFile").click();
+document.getElementById("importCsvBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const csvInput = document.getElementById("csvFile");
+
+  if (appMenu) {
+    appMenu.hidden = true;
+  }
+
+  csvInput.value = "";
+
+  setTimeout(() => {
+    csvInput.click();
+  }, 50);
 });
 
 document.getElementById("csvFile").addEventListener("change", (event) => {
-  const file = event.target.files[0];
+  const input = event.target;
+  const file = input.files && input.files[0];
+
   if (!file) return;
 
   const reader = new FileReader();
@@ -1487,24 +2300,29 @@ document.getElementById("csvFile").addEventListener("change", (event) => {
         return;
       }
 
-      importExcelStyleIsland(rows, islandName.trim());
+      const importedIndex = importExcelStyleIsland(rows, islandName.trim());
 
-      activeIslandIndex = islands.findIndex(
-        (island) => island.name.toLowerCase() === islandName.trim().toLowerCase()
-      );
-
+      activeIslandIndex = importedIndex;
       activeQuestionIndex = 0;
+      hidden = false;
+
       saveData();
       render();
       showToast("CSV island imported.");
     } catch (error) {
       console.error(error);
       showToast("CSV import failed. Check your file format.");
+    } finally {
+      input.value = "";
     }
   };
 
+  reader.onerror = () => {
+    showToast("CSV import failed. The file could not be read.");
+    input.value = "";
+  };
+
   reader.readAsText(file);
-  event.target.value = "";
 });
 
 function parseCsv(text) {
@@ -1663,22 +2481,26 @@ function importExcelStyleIsland(rows, islandName) {
   };
 
   if (existingIndex !== -1) {
-    const shouldReplace = confirm(
-      `"${islandName}" already exists. Replace it with this CSV import?`
-    );
+  const shouldReplace = confirm(
+    `"${islandName}" already exists. Replace it with this CSV import?`
+  );
 
-    if (shouldReplace) {
-      islands[existingIndex] = importedIsland;
-    } else {
-      islands.push({
-        ...importedIsland,
-        id: `${importedIsland.id}-${Date.now()}`,
-        name: `${islandName} Copy`
-      });
-    }
+  if (shouldReplace) {
+    islands[existingIndex] = importedIsland;
+    return existingIndex;
   } else {
-    islands.push(importedIsland);
+    islands.push({
+      ...importedIsland,
+      id: `${importedIsland.id}-${Date.now()}`,
+      name: `${islandName} Copy`
+    });
+
+    return islands.length - 1;
   }
+} else {
+  islands.push(importedIsland);
+  return islands.length - 1;
+}
 }
 if ("speechSynthesis" in window) {
   loadVoices();
