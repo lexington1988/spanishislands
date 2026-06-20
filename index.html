@@ -279,6 +279,10 @@ h1 {
   border-color: rgba(15, 107, 110, 0.22);
 }
 
+.island-item.active {
+  box-shadow: inset 4px 0 0 var(--sea);
+}
+
 .island-title {
   display: flex;
   justify-content: space-between;
@@ -531,10 +535,12 @@ h1 {
 }
 
 .mode {
+  position: relative;
   min-height: 58px;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 15px;
-  padding: 13px;
+  padding: 13px 13px 13px 18px;
   background: rgba(255, 255, 255, 0.62);
   text-align: left;
   color: var(--ink);
@@ -552,12 +558,31 @@ h1 {
   line-height: 1.4;
 }
 
-.mode.active,
 .mode:hover {
   background: #fff;
   border-color: rgba(15, 107, 110, 0.35);
 }
 
+.mode.active {
+  background: var(--sea-soft);
+  border-color: rgba(15, 107, 110, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(15, 107, 110, 0.08);
+}
+
+.mode.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--sea);
+}
+.session-actions {
+  display: grid;
+  gap: 8px;
+}
 label {
   color: var(--muted);
   font-size: 13px;
@@ -613,7 +638,11 @@ textarea {
   filter: blur(9px);
   user-select: none;
 }
-
+.speak-first-hidden .answer-es,
+.speak-first-hidden .answer-en,
+.speak-first-hidden .chunks {
+  display: none;
+}
 .toast {
   position: fixed;
   left: 50%;
@@ -836,9 +865,11 @@ textarea {
   }
 
   .island-item {
-    min-height: 74px;
-    padding: 13px 72px 13px 13px;
-  }
+  position: relative;
+  min-height: 74px;
+  overflow: hidden;
+  padding: 13px 72px 13px 22px;
+}
 
   .island-title {
     padding-right: 0;
@@ -951,7 +982,9 @@ textarea {
     min-height: 54px;
     padding: 12px;
   }
-
+.session-actions {
+  margin-top: 2px;
+}
   .modal-card {
     border-radius: 18px;
     max-height: 90vh;
@@ -1151,10 +1184,25 @@ textarea {
           <strong>Recall mode</strong>
           <span>Hide the Spanish and produce it aloud.</span>
         </button>
-        <button class="mode" data-mode="conversation">
-          <strong>Conversation mode</strong>
-          <span>Jump between questions like a lesson.</span>
-        </button>
+      <button class="mode" data-mode="conversation">
+  <strong>Conversation mode</strong>
+  <span>Jump between questions like a lesson.</span>
+</button>
+
+<button class="mode" data-mode="speak-first">
+  <strong>Speak First mode</strong>
+  <span>See the question, speak your answer, then reveal the model.</span>
+</button>
+
+<div class="session-actions">
+  <button id="startSessionBtn" class="btn primary full" type="button">
+    Start 10-card session
+  </button>
+
+  <button id="endSessionBtn" class="btn soft full" type="button" hidden>
+    End Session
+  </button>
+</div>
       </div>
 
       <div class="tool-block">
@@ -1254,9 +1302,10 @@ textarea {
     </div>
 
     <div class="modal-actions">
-      <button id="cancelEditCardBtn" class="btn soft" type="button">Cancel</button>
-      <button id="saveEditCardBtn" class="btn primary" type="button">Save Card</button>
-    </div>
+  <button id="duplicateCardBtn" class="btn soft" type="button">Duplicate Card</button>
+  <button id="cancelEditCardBtn" class="btn soft" type="button">Cancel</button>
+  <button id="saveEditCardBtn" class="btn primary" type="button">Save Card</button>
+</div>
   </div>
 </div>
 <script>
@@ -1347,6 +1396,11 @@ let activeQuestionIndex = 0;
 let mode = "read";
 let hidden = false;
 let shadowAutoPlay = false;
+let speakFirstRevealed = false;
+let sessionActive = false;
+let sessionCards = [];
+let sessionPosition = 0;
+let sessionStartedAt = 0;
 let voices = [];
 let playingIslandId = null;
 let islandPlaybackStartedAt = 0;
@@ -1382,7 +1436,8 @@ const settingDailyGoal = document.getElementById("settingDailyGoal");
 const resetTodayInputBtn = document.getElementById("resetTodayInputBtn");
 const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
-
+const startSessionBtn = document.getElementById("startSessionBtn");
+const endSessionBtn = document.getElementById("endSessionBtn");
 const settingsStorageKey = "spanish-islands-settings-v1";
 
 let appSettings = loadSettings();
@@ -1395,6 +1450,7 @@ const editQuestionEn = document.getElementById("editQuestionEn");
 const editAnswerEs = document.getElementById("editAnswerEs");
 const editAnswerEn = document.getElementById("editAnswerEn");
 const editChunks = document.getElementById("editChunks");
+const duplicateCardBtn = document.getElementById("duplicateCardBtn");
   function loadSettings() {
   const defaults = {
     voiceRate: 0.86,
@@ -1697,17 +1753,23 @@ function renderIslands() {
         <span>${island.name}</span>
         <span>${average}/5</span>
       </div>
-      <div class="island-meta">
-        ${island.questions.length} questions · ${island.level}
-      </div>
+     <div class="island-meta">
+  ${island.questions.length} cards · ${island.level}
+</div>
     `;
 
     button.addEventListener("click", () => {
-      activeIslandIndex = index;
-      activeQuestionIndex = 0;
-      hidden = false;
-      render();
-    });
+  if (sessionActive) {
+    endPracticeSession(false);
+  }
+
+  activeIslandIndex = index;
+activeQuestionIndex = 0;
+hidden = mode === "recall";
+speakFirstRevealed = mode !== "speak-first";
+
+render();
+});
 
     const deleteButton = document.createElement("button");
     deleteButton.className = "island-delete";
@@ -1805,7 +1867,9 @@ function renderQuestion() {
   const question = activeQuestion();
 
   levelPill.textContent = island.level;
-  counterPill.textContent = `${activeQuestionIndex + 1} / ${island.questions.length}`;
+  counterPill.textContent = sessionActive
+  ? `Session ${sessionPosition + 1} / ${sessionCards.length}`
+  : `${activeQuestionIndex + 1} / ${island.questions.length}`;
   questionEs.textContent = question.es;
   questionEn.textContent = question.en;
   answerEs.textContent = question.answerEs;
@@ -1821,8 +1885,26 @@ function renderQuestion() {
     chunks.appendChild(chip);
   });
 
-  document.getElementById("wanted").value = question.notes || "";
-  mainCard.classList.toggle("hidden-answer", hidden || mode === "recall");
+ document.getElementById("wanted").value = question.notes || "";
+
+mainCard.classList.toggle(
+  "hidden-answer",
+  hidden
+);
+
+mainCard.classList.toggle(
+  "speak-first-hidden",
+  mode === "speak-first" && !speakFirstRevealed
+);
+
+document.getElementById("hideBtn").textContent =
+  mode === "speak-first"
+    ? speakFirstRevealed
+      ? "Hide Answer"
+      : "Reveal Answer"
+    : hidden
+      ? "Show Spanish"
+      : "Hide Spanish";
 }
 
 function renderRating() {
@@ -2165,14 +2247,120 @@ function loadVoices() {
   const preferred = usableVoices.find((voice) => voice.lang === "es-ES") || usableVoices[0];
   if (preferred) voiceSelect.value = preferred.name;
 }
+function startPracticeSession() {
+  const island = activeIsland();
 
+  if (!island.questions.length) {
+    showToast("This island has no cards.");
+    return;
+  }
+
+  const sessionSize = Math.min(10, island.questions.length);
+
+  sessionCards = island.questions
+    .map((question, index) => index)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, sessionSize);
+
+  sessionActive = true;
+  sessionPosition = 0;
+  sessionStartedAt = Date.now();
+
+  activeQuestionIndex = sessionCards[sessionPosition];
+
+  hidden = mode === "recall";
+speakFirstRevealed = mode !== "speak-first";
+
+  startSessionBtn.hidden = true;
+  endSessionBtn.hidden = false;
+
+  render();
+
+  showToast(`Started ${sessionSize}-card session.`);
+}
+
+function endPracticeSession(showSummary = true) {
+  const completedCards = sessionActive
+    ? sessionPosition + 1
+    : 0;
+
+  const elapsed = sessionStartedAt
+    ? Date.now() - sessionStartedAt
+    : 0;
+
+  sessionActive = false;
+  sessionCards = [];
+  sessionPosition = 0;
+  sessionStartedAt = 0;
+
+  startSessionBtn.hidden = false;
+  endSessionBtn.hidden = true;
+
+  render();
+
+  if (showSummary) {
+    showToast(
+      `Session ended: ${completedCards} cards · ${formatDuration(elapsed)}.`
+    );
+  }
+}
+
+function finishPracticeSession() {
+  const elapsed = sessionStartedAt
+    ? Date.now() - sessionStartedAt
+    : 0;
+
+  const completedCards = sessionCards.length;
+
+  sessionActive = false;
+  sessionCards = [];
+  sessionPosition = 0;
+  sessionStartedAt = 0;
+
+  startSessionBtn.hidden = false;
+  endSessionBtn.hidden = true;
+
+  render();
+
+  showToast(
+    `Session complete: ${completedCards} cards · ${formatDuration(elapsed)}.`
+  );
+}
 function nextQuestion(step = 1) {
+  if (sessionActive) {
+    sessionPosition += step;
+
+    if (sessionPosition >= sessionCards.length) {
+      finishPracticeSession();
+      return;
+    }
+
+    if (sessionPosition < 0) {
+      sessionPosition = sessionCards.length - 1;
+    }
+
+    activeQuestionIndex = sessionCards[sessionPosition];
+
+    hidden = mode === "recall";
+    speakFirstRevealed = mode !== "speak-first";
+
+    render();
+
+    if (shadowAutoPlay) {
+      setTimeout(shadow, 150);
+    }
+
+    return;
+  }
+
   const total = activeIsland().questions.length;
 
   activeQuestionIndex =
     (activeQuestionIndex + step + total) % total;
 
-  hidden = false;
+  hidden = mode === "recall";
+  speakFirstRevealed = mode !== "speak-first";
+
   render();
 
   if (shadowAutoPlay) {
@@ -2194,8 +2382,9 @@ function randomQuestion() {
   }
 
   activeQuestionIndex = next;
-  hidden = mode === "recall";
-  render();
+hidden = mode === "recall";
+speakFirstRevealed = mode !== "speak-first";
+render();
 }
 
 function showToast(message) {
@@ -2251,7 +2440,26 @@ function saveEditedCard() {
 
   showToast("Card updated.");
 }
+function duplicateCurrentCard() {
+  const island = activeIsland();
+  const question = activeQuestion();
 
+  const copiedCard = structuredClone(question);
+
+  copiedCard.confidence = 1;
+  copiedCard.notes = question.notes || "";
+
+  island.questions.splice(activeQuestionIndex + 1, 0, copiedCard);
+
+  activeQuestionIndex += 1;
+  hidden = mode === "recall";
+
+  saveData();
+  closeEditCardModal();
+  render();
+
+  showToast("Card duplicated.");
+}
 function deleteCurrentCard() {
   const island = activeIsland();
 
@@ -2306,6 +2514,7 @@ settingsModal.addEventListener("click", (event) => {
 document.getElementById("deleteCardBtn").addEventListener("click", deleteCurrentCard);
 document.getElementById("cancelEditCardBtn").addEventListener("click", closeEditCardModal);
 document.getElementById("saveEditCardBtn").addEventListener("click", saveEditedCard);
+duplicateCardBtn.addEventListener("click", duplicateCurrentCard);
 
 editCardModal.addEventListener("click", (event) => {
   if (event.target === editCardModal) {
@@ -2339,6 +2548,12 @@ document.getElementById("shadowBtn").addEventListener("click", () => {
 });
 
 document.getElementById("hideBtn").addEventListener("click", () => {
+  if (mode === "speak-first") {
+    speakFirstRevealed = !speakFirstRevealed;
+    renderQuestion();
+    return;
+  }
+
   hidden = !hidden;
   renderQuestion();
 });
@@ -2346,6 +2561,8 @@ document.getElementById("hideBtn").addEventListener("click", () => {
 document.getElementById("prevBtn").addEventListener("click", () => nextQuestion(-1));
 document.getElementById("nextBtn").addEventListener("click", () => nextQuestion(1));
 document.getElementById("randomBtn").addEventListener("click", randomQuestion);
+startSessionBtn.addEventListener("click", startPracticeSession);
+endSessionBtn.addEventListener("click", () => endPracticeSession(true));
 const menuBtn = document.getElementById("menuBtn");
 const appMenu = document.getElementById("appMenu");
 
@@ -2377,10 +2594,16 @@ document.querySelectorAll(".mode").forEach((button) => {
     button.classList.add("active");
 
     mode = button.dataset.mode;
-    hidden = mode === "recall";
+hidden = mode === "recall";
+speakFirstRevealed = mode !== "speak-first";
 
-    if (mode === "conversation") randomQuestion();
-    renderQuestion();
+if (mode === "conversation") randomQuestion();
+
+if (mode === "speak-first") {
+  speakFirstRevealed = false;
+}
+
+renderQuestion();
   });
 });
 
@@ -2398,8 +2621,35 @@ document.getElementById("addChunkBtn").addEventListener("click", () => {
 });
 
 document.getElementById("saveWantedBtn").addEventListener("click", () => {
-  activeQuestion().notes = document.getElementById("wanted").value.trim();
+  const wantedText = document.getElementById("wanted").value.trim();
+
+  activeQuestion().notes = wantedText;
   saveData();
+
+  if (wantedText) {
+    const growBox = document.querySelector(".grow-box");
+    const newQuestionEs = document.getElementById("newQuestionEs");
+    const newQuestionEn = document.getElementById("newQuestionEn");
+    const newAnswerEn = document.getElementById("newAnswerEn");
+
+    growBox.open = true;
+
+    if (!newQuestionEs.value.trim()) {
+      newQuestionEs.value = activeQuestion().es || "";
+    }
+
+    if (!newQuestionEn.value.trim()) {
+      newQuestionEn.value = activeQuestion().en || "";
+    }
+
+    if (!newAnswerEn.value.trim()) {
+      newAnswerEn.value = wantedText;
+    }
+
+    showToast("Note saved and added to Grow this island.");
+    return;
+  }
+
   showToast("Note saved.");
 });
 
