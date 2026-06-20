@@ -323,25 +323,34 @@ h1 {
   color: #a33b32;
   opacity: 1;
 }
-  .island-audio {
+.island-audio {
   position: absolute;
   right: 10px;
   bottom: 9px;
-  border: 0;
-  padding: 3px 5px;
-  background: transparent;
+  min-width: 72px;
+  min-height: 30px;
+  border: 1px solid rgba(15, 107, 110, 0.14);
+  padding: 5px 8px;
+  background: rgba(255, 255, 250, 0.72);
   color: var(--sea-dark);
   font: inherit;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
   cursor: pointer;
-  border-radius: 7px;
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(8, 73, 77, 0.08);
 }
 
 .island-audio:hover,
-.island-audio:focus-visible,
+.island-audio:focus-visible {
+  background: rgba(216, 238, 234, 0.95);
+  border-color: rgba(15, 107, 110, 0.24);
+}
+
 .island-audio.playing {
-  background: rgba(15, 107, 110, 0.1);
+  color: #fff;
+  background: var(--sea);
+  border-color: var(--sea);
 }
 
 .daily-input {
