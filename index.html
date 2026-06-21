@@ -6,6 +6,10 @@
 <title>Spanish Islands</title>
   <link rel="manifest" href="./manifest.json">
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
 <link rel="icon" href="./favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="./icon-32x32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
@@ -107,7 +111,28 @@ button {
     padding-left: 12px;
     padding-right: 12px;
   }
+.sync-status {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
 
+.sync-status.synced {
+  color: var(--sea-dark);
+}
+
+.sync-status.offline {
+  color: #a33b32;
+}
+
+@media (max-width: 720px) {
+  .sync-status {
+    margin-left: 0;
+    font-size: 12px;
+  }
+}
   .menu-wrap {
     margin-left: auto;
   }
@@ -722,6 +747,88 @@ textarea {
 .speak-first-hidden .chunks {
   display: none;
 }
+  .anki-complete-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.anki-complete-grid div {
+  padding: 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+  text-align: center;
+}
+
+.anki-complete-grid strong {
+  display: block;
+  color: var(--sea-dark);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.anki-complete-grid span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+  .anki-hidden .question-es,
+.anki-hidden .answer-es,
+.anki-hidden .chunks {
+  display: none;
+}
+
+.anki-rating {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.anki-rating button {
+  min-height: 70px;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+}
+
+.anki-rating button span {
+  font-weight: 900;
+}
+
+.anki-rating button small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+  .anki-complete-state .section-label,
+.anki-complete-state .answer-en,
+.anki-complete-state .chunks,
+.anki-complete-state .button-row,
+.anki-complete-state .inline-confidence {
+  display: none;
+}
+
+.anki-complete-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.anki-complete-count {
+  font-size: 24px;
+  font-weight: 950;
+  color: var(--ink);
+}
+
+.anki-complete-actions {
+  margin-top: 4px;
+}
+
+.anki-complete-actions .btn {
+  width: 100%;
+}
 .toast {
   position: fixed;
   left: 50%;
@@ -729,7 +836,7 @@ textarea {
   transform: translateX(-50%) translateY(20px);
   opacity: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: 3000;
   padding: 12px 16px;
   border-radius: 999px;
   color: #fff;
@@ -745,7 +852,31 @@ textarea {
 .main-card {
   position: relative;
 }
+.main-card.card-changing .question-hero,
+.main-card.card-changing .practice-grid {
+  opacity: 0.28;
+  transform: translateY(6px);
+}
 
+.question-hero,
+.practice-grid {
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question-hero,
+  .practice-grid {
+    transition: none;
+  }
+
+  .main-card.card-changing .question-hero,
+  .main-card.card-changing .practice-grid {
+    opacity: 1;
+    transform: none;
+  }
+}
 .card-tools {
   position: absolute;
   top: clamp(22px, 4vw, 36px);
@@ -1164,7 +1295,7 @@ textarea {
         <p>Build small safe zones for real Spanish conversations.</p>
       </div>
     </div>
-
+<div id="syncStatus" class="sync-status">Not signed in</div>
     <div class="top-actions">
   <button id="newIslandBtn" class="btn soft">New Island</button>
   <button id="randomBtn" class="btn primary">Random Question</button>
@@ -1174,7 +1305,9 @@ textarea {
       •••
     </button>
 
-    <div id="appMenu" class="app-menu" hidden>
+   <div id="appMenu" class="app-menu" hidden>
+  <button id="loginBtn" type="button">Log In / Sync</button>
+  <button id="logoutBtn" type="button" hidden>Log Out</button>
   <button id="settingsBtn" type="button">Settings</button>
   <button id="exportBtn" type="button">Export Backup</button>
   <button id="importBtn" type="button">Import JSON</button>
@@ -1288,9 +1421,9 @@ textarea {
           <strong>Recall mode</strong>
           <span>Hide the Spanish and produce it aloud.</span>
         </button>
-      <button class="mode" data-mode="conversation">
-  <strong>Conversation mode</strong>
-  <span>Jump between questions like a lesson.</span>
+    <button class="mode" data-mode="anki">
+  <strong>Anki Review mode</strong>
+  <span>English only. Say the Spanish, reveal, then rate.</span>
 </button>
 
 <button class="mode" data-mode="speak-first">
@@ -1342,6 +1475,32 @@ textarea {
 </div>
 
 <div id="toast" class="toast"></div>
+  <div id="loginModal" class="modal-backdrop" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-head">
+      <span class="eyebrow">Cloud sync</span>
+      <h2 id="loginTitle">Log in to sync</h2>
+    </div>
+
+    <div class="modal-body">
+      <label for="loginEmail">Username</label>
+<input id="loginEmail" type="text" autocomplete="username" placeholder="e.g. lex">
+
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password">
+
+      <p class="hint">
+        Use the same login on your phone, laptop, or tablet to sync your Spanish Islands.
+      </p>
+    </div>
+
+    <div class="modal-actions">
+      <button id="cancelLoginBtn" class="btn soft" type="button">Cancel</button>
+      <button id="createAccountBtn" class="btn soft" type="button">Create Account</button>
+      <button id="signInBtn" class="btn primary" type="button">Log In</button>
+    </div>
+  </div>
+</div>
   <div id="settingsModal" class="modal-backdrop" hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-head">
@@ -1363,6 +1522,14 @@ textarea {
 <label for="settingSessionSize">Session card count</label>
 <input id="settingSessionSize" type="number" min="1" max="50" step="1" placeholder="Cards per session">
 <p class="hint">The session will use fewer cards if the island has fewer available.</p>
+     
+
+<label for="settingAnkiMaxInterval">Anki maximum interval</label>
+<input id="settingAnkiMaxInterval" type="number" min="1" max="60" step="1" placeholder="Maximum days between reviews">
+<p class="hint">Prevents cards disappearing for too long.</p>
+      <label for="settingAnkiDailyLimit">Anki daily review limit</label>
+<input id="settingAnkiDailyLimit" type="number" min="1" max="100" step="1" placeholder="Maximum due cards per review">
+<p class="hint">Limits how many due cards are loaded into one Anki review session.</p>
       <button id="resetTodayInputBtn" class="btn soft full" type="button">
         Reset Today’s Input
       </button>
@@ -1488,7 +1655,21 @@ const starterData = [
     ]
   }
 ];
+const firebaseConfig = {
+  apiKey: "AIzaSyC3LaWuy1rDzo3_6elBaOjxrgKeI0ssTCA",
+  authDomain: "spanish-islands.firebaseapp.com",
+  projectId: "spanish-islands",
+  storageBucket: "spanish-islands.firebasestorage.app",
+  messagingSenderId: "1027666719193",
+  appId: "1:1027666719193:web:ee62172d61adcedf4da9c8"
+};
 
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let currentUser = null;
 const storageKey = "spanish-islands-codepen-v1";
 const inputStorageKey = "spanish-islands-daily-input-v1";
 
@@ -1499,6 +1680,14 @@ let mode = "read";
 let hidden = false;
 let shadowAutoPlay = false;
 let speakFirstRevealed = false;
+  let ankiRevealed = false;
+  let ankiComplete = false;
+let ankiReviewStats = {
+  reviewed: 0,
+  again: 0,
+  hard: 0,
+  good: 0
+};
 let sessionActive = false;
 let islandMenuOpen = false;
 let sessionCards = [];
@@ -1531,6 +1720,15 @@ const dailyGoalText = document.getElementById("dailyGoalText");
 const dailyPercentText = document.getElementById("dailyPercentText");
 const dailyProgressBar = document.getElementById("dailyProgressBar");
 const dailyGoalBtn = document.getElementById("dailyGoalBtn");
+  const syncStatus = document.getElementById("syncStatus");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const loginModal = document.getElementById("loginModal");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const cancelLoginBtn = document.getElementById("cancelLoginBtn");
+const createAccountBtn = document.getElementById("createAccountBtn");
+const signInBtn = document.getElementById("signInBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const settingVoiceRate = document.getElementById("settingVoiceRate");
@@ -1539,6 +1737,8 @@ const settingShadowPause = document.getElementById("settingShadowPause");
 const settingShadowPauseText = document.getElementById("settingShadowPauseText");
 const settingDailyGoal = document.getElementById("settingDailyGoal");
   const settingSessionSize = document.getElementById("settingSessionSize");
+const settingAnkiMaxInterval = document.getElementById("settingAnkiMaxInterval");
+const settingAnkiDailyLimit = document.getElementById("settingAnkiDailyLimit");
 const resetTodayInputBtn = document.getElementById("resetTodayInputBtn");
 const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
@@ -1558,10 +1758,12 @@ const editAnswerEn = document.getElementById("editAnswerEn");
 const editChunks = document.getElementById("editChunks");
 const duplicateCardBtn = document.getElementById("duplicateCardBtn");
   function loadSettings() {
-  const defaults = {
+ const defaults = {
   voiceRate: 0.86,
   shadowPauseMs: 1600,
-  sessionSize: 10
+  sessionSize: 10,
+  ankiMaxIntervalDays: 14,
+  ankiDailyLimit: 20
 };
 
   try {
@@ -1581,7 +1783,94 @@ function saveSettingsToStorage() {
     JSON.stringify(appSettings)
   );
 }
+  function usernameToFirebaseEmail(value) {
+  const clean = value.trim().toLowerCase();
 
+  if (!clean) return "";
+
+  if (clean.includes("@")) {
+    return clean;
+  }
+
+  return `${clean}@fake.com`;
+}
+function openLoginModal() {
+  loginModal.hidden = false;
+  appMenu.hidden = true;
+
+  setTimeout(() => {
+    loginEmail.focus();
+  }, 50);
+}
+
+function closeLoginModal() {
+  loginModal.hidden = true;
+  loginPassword.value = "";
+}
+
+function setSyncStatus(message, state = "") {
+  syncStatus.textContent = message;
+
+  syncStatus.classList.remove(
+    "synced",
+    "offline"
+  );
+
+  if (state) {
+    syncStatus.classList.add(state);
+  }
+}
+
+async function createAccount() {
+  const username = loginEmail.value.trim();
+const email = usernameToFirebaseEmail(username);
+const password = loginPassword.value;
+
+  if (!username || !password) {
+  showToast("Enter a username and password.");
+  return;
+}
+
+  try {
+    setSyncStatus("Creating account...");
+    await auth.createUserWithEmailAndPassword(email, password);
+    closeLoginModal();
+    showToast("Account created.");
+  } catch (error) {
+    setSyncStatus("Not signed in", "offline");
+    showToast(error.message);
+  }
+}
+
+async function signIn() {
+  const username = loginEmail.value.trim();
+const email = usernameToFirebaseEmail(username);
+const password = loginPassword.value;
+
+  if (!username || !password) {
+  showToast("Enter a username and password.");
+  return;
+}
+
+  try {
+    setSyncStatus("Signing in...");
+    await auth.signInWithEmailAndPassword(email, password);
+    closeLoginModal();
+    showToast("Signed in.");
+  } catch (error) {
+    setSyncStatus("Not signed in", "offline");
+    showToast(error.message);
+  }
+}
+
+async function signOut() {
+  try {
+    await auth.signOut();
+    showToast("Signed out.");
+  } catch (error) {
+    showToast(error.message);
+  }
+}
 function openSettingsModal() {
   settingVoiceRate.value = appSettings.voiceRate;
   settingVoiceRateText.textContent = `Voice rate: ${Number(appSettings.voiceRate).toFixed(2)}`;
@@ -1591,6 +1880,8 @@ function openSettingsModal() {
 
   settingDailyGoal.value = Math.round(dailyGoalMs / 60000);
 settingSessionSize.value = appSettings.sessionSize;
+  settingAnkiMaxInterval.value = appSettings.ankiMaxIntervalDays;
+settingAnkiDailyLimit.value = appSettings.ankiDailyLimit;
   settingsModal.hidden = false;
   appMenu.hidden = true;
 }
@@ -1604,6 +1895,8 @@ function saveSettingsFromModal() {
   const shadowPauseMs = Number(settingShadowPause.value);
   const dailyGoalMinutes = Number(settingDailyGoal.value);
 const sessionSize = Number(settingSessionSize.value);
+ const ankiMaxIntervalDays = Number(settingAnkiMaxInterval.value);
+const ankiDailyLimit = Number(settingAnkiDailyLimit.value);
   if (!Number.isFinite(voiceRate) || voiceRate <= 0) {
     showToast("Voice rate is not valid.");
     return;
@@ -1622,9 +1915,28 @@ if (!Number.isFinite(sessionSize) || sessionSize < 1 || sessionSize > 50) {
   showToast("Session card count must be between 1 and 50.");
   return;
 }
-  appSettings.voiceRate = voiceRate;
+
+if (
+  !Number.isFinite(ankiMaxIntervalDays) ||
+  ankiMaxIntervalDays < 1 ||
+  ankiMaxIntervalDays > 60
+) {
+  showToast("Anki maximum interval must be between 1 and 60 days.");
+  return;
+}
+  if (
+  !Number.isFinite(ankiDailyLimit) ||
+  ankiDailyLimit < 1 ||
+  ankiDailyLimit > 100
+) {
+  showToast("Anki daily review limit must be between 1 and 100 cards.");
+  return;
+}
+ appSettings.voiceRate = voiceRate;
 appSettings.shadowPauseMs = shadowPauseMs;
 appSettings.sessionSize = Math.round(sessionSize);
+appSettings.ankiMaxIntervalDays = Math.round(ankiMaxIntervalDays);
+appSettings.ankiDailyLimit = Math.round(ankiDailyLimit);
 
   dailyGoalMs = Math.round(dailyGoalMinutes * 60 * 1000);
 
@@ -1830,7 +2142,166 @@ function saveData() {
 function activeIsland() {
   return islands[activeIslandIndex];
 }
+function dateKey(date = new Date()) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy.toISOString().slice(0, 10);
+}
 
+function addDaysIso(days) {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+function addMinutesIso(minutes) {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() + minutes);
+  return date.toISOString();
+}
+
+function ensureSrs(question) {
+  if (!question.srs) {
+    question.srs = {
+      due: dateKey(),
+      interval: 0,
+      reps: 0,
+      lapses: 0,
+      lastReviewed: null,
+      lastGrade: null
+    };
+  }
+
+  return question.srs;
+}
+
+function isCardDue(question) {
+  const srs = ensureSrs(question);
+
+  if (!srs.due) return true;
+
+  // Supports older cards that stored due as YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(srs.due)) {
+    return srs.due <= dateKey();
+  }
+
+  return new Date(srs.due).getTime() <= Date.now();
+}
+  function countDueCards(island) {
+  return island.questions.filter((question) => isCardDue(question)).length;
+}
+function getAnkiSchedulePreview(question, grade) {
+  const srs = ensureSrs(question);
+  const currentInterval = Number(srs.interval) || 0;
+ const maxInterval = Number(appSettings.ankiMaxIntervalDays) || 14;
+
+if (grade === "again") {
+  return {
+    interval: 0,
+    due: new Date().toISOString(),
+    label: "Back of pack",
+    toast: "back of the pack"
+  };
+}
+
+  if (grade === "hard") {
+    const nextInterval = Math.max(
+      1,
+      Math.round(currentInterval * 0.6) || 1
+    );
+
+    return {
+      interval: nextInterval,
+      due: addDaysIso(nextInterval),
+      label: `${nextInterval} day${nextInterval === 1 ? "" : "s"}`,
+      toast: `${nextInterval} day${nextInterval === 1 ? "" : "s"}`
+    };
+  }
+
+  const nextInterval = currentInterval < 1
+    ? 2
+    : Math.min(
+        maxInterval,
+        Math.max(2, Math.round(currentInterval * 1.7))
+      );
+
+  return {
+    interval: nextInterval,
+    due: addDaysIso(nextInterval),
+    label: `${nextInterval} day${nextInterval === 1 ? "" : "s"}`,
+    toast: `${nextInterval} day${nextInterval === 1 ? "" : "s"}`
+  };
+}
+function scheduleAnkiCard(question, grade) {
+  const srs = ensureSrs(question);
+  const preview = getAnkiSchedulePreview(question, grade);
+
+  if (grade === "again") {
+    srs.lapses = (srs.lapses || 0) + 1;
+  }
+
+  if (grade === "good") {
+    srs.reps = (srs.reps || 0) + 1;
+  }
+
+  srs.interval = preview.interval;
+  srs.due = preview.due;
+  srs.lastReviewed = new Date().toISOString();
+  srs.lastGrade = grade;
+
+  return {
+    ...srs,
+    nextReviewText: preview.toast
+  };
+}
+function resetAnkiReviewStats() {
+  ankiComplete = false;
+
+  ankiReviewStats = {
+    reviewed: 0,
+    again: 0,
+    hard: 0,
+    good: 0
+  };
+}
+function startAnkiReview() {
+  const island = activeIsland();
+resetAnkiReviewStats();
+  const allDueIndexes = island.questions
+  .map((question, index) => ({ question, index }))
+  .filter(({ question }) => isCardDue(question))
+  .map(({ index }) => index);
+
+const dailyLimit = Number(appSettings.ankiDailyLimit) || 20;
+
+const dueIndexes = allDueIndexes
+  .sort(() => Math.random() - 0.5)
+  .slice(0, dailyLimit);
+
+  if (!dueIndexes.length) {
+    showToast("No Anki cards due today.");
+    return;
+  }
+
+  sessionActive = true;
+  sessionCards = dueIndexes;
+  sessionPosition = 0;
+  activeQuestionIndex = sessionCards[sessionPosition];
+
+  mode = "anki";
+  hidden = false;
+  speakFirstRevealed = true;
+  ankiRevealed = false;
+
+  render();
+
+  showToast(
+  allDueIndexes.length > sessionCards.length
+    ? `${sessionCards.length} of ${allDueIndexes.length} due cards loaded.`
+    : `${sessionCards.length} Anki cards due.`
+);
+}
 function activeQuestion() {
   return activeIsland().questions[activeQuestionIndex];
 }
@@ -1850,12 +2321,14 @@ function renderIslands() {
     }
 
     activeIslandIndex = index;
-    activeQuestionIndex = 0;
-    hidden = mode === "recall";
-    speakFirstRevealed = mode !== "speak-first";
-    islandMenuOpen = false;
+activeQuestionIndex = 0;
+ankiComplete = false;
+hidden = mode === "recall";
+speakFirstRevealed = mode !== "speak-first";
+ankiRevealed = mode !== "anki";
+islandMenuOpen = false;
 
-    render();
+render();
   }
 
   function createIslandCard(island, index) {
@@ -1878,11 +2351,42 @@ function renderIslands() {
         <span>${island.name}</span>
         <span>${average}/5</span>
       </div>
-      <div class="island-meta">
-        ${island.questions.length} cards · ${island.level}
-      </div>
+    <div class="island-meta">
+  ${island.questions.length} cards${countDueCards(island) ? ` · ${countDueCards(island)} due` : ""} · ${island.level}
+</div>
     `;
+loginBtn.addEventListener("click", openLoginModal);
+logoutBtn.addEventListener("click", signOut);
+cancelLoginBtn.addEventListener("click", closeLoginModal);
+createAccountBtn.addEventListener("click", createAccount);
+signInBtn.addEventListener("click", signIn);
 
+loginPassword.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    signIn();
+  }
+});
+
+auth.onAuthStateChanged((user) => {
+  currentUser = user;
+
+  if (user) {
+    const username = user.email
+      ? user.email.split("@")[0]
+      : "user";
+
+    const displayName =
+      username.charAt(0).toUpperCase() + username.slice(1);
+
+    loginBtn.hidden = true;
+    logoutBtn.hidden = false;
+    setSyncStatus(`User: ${displayName}`, "synced");
+  } else {
+    loginBtn.hidden = false;
+    logoutBtn.hidden = true;
+    setSyncStatus("Not signed in");
+  }
+});
     button.addEventListener("click", () => {
       selectIsland(index);
     });
@@ -1923,6 +2427,7 @@ function renderIslands() {
       activeQuestionIndex = 0;
       hidden = mode === "recall";
       speakFirstRevealed = mode !== "speak-first";
+      ankiRevealed = mode !== "anki";
       islandMenuOpen = false;
 
       if (playingIslandId === island.id) {
@@ -2033,11 +2538,83 @@ function renderIslands() {
 
   updateDailyInputDisplay();
 }
+function renderAnkiCompleteScreen() {
+  const mainCard = document.getElementById("mainCard");
 
+  mainCard.classList.remove(
+    "hidden-answer",
+    "speak-first-hidden",
+    "anki-hidden"
+  );
+
+  mainCard.classList.add("anki-complete-state");
+
+  document.getElementById("levelPill").textContent = "Anki Review";
+  document.getElementById("counterPill").textContent = "Complete";
+
+  document.getElementById("questionEs").textContent =
+    "Anki Review Complete";
+
+  document.getElementById("questionEn").textContent =
+    "Good work — your due cards have been reviewed.";
+
+  document.getElementById("answerEs").innerHTML = `
+    <div class="anki-complete-summary">
+      <div class="anki-complete-count">
+        ${ankiReviewStats.reviewed} card${ankiReviewStats.reviewed === 1 ? "" : "s"} reviewed
+      </div>
+
+      <div class="anki-complete-grid">
+        <div>
+          <strong>${ankiReviewStats.again}</strong>
+          <span>Again</span>
+        </div>
+        <div>
+          <strong>${ankiReviewStats.hard}</strong>
+          <span>Hard</span>
+        </div>
+        <div>
+          <strong>${ankiReviewStats.good}</strong>
+          <span>Good</span>
+        </div>
+      </div>
+
+      <div class="anki-complete-actions">
+        <button id="startAnotherAnkiBtn" class="btn primary" type="button">
+          Start Another Review
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("answerEn").innerHTML = "";
+  document.getElementById("chunks").innerHTML = "";
+
+  document.getElementById("listenBtn").disabled = true;
+  document.getElementById("shadowBtn").disabled = true;
+  document.getElementById("prevBtn").disabled = true;
+  document.getElementById("nextBtn").disabled = true;
+
+  rating.innerHTML = "";
+
+  document
+    .getElementById("startAnotherAnkiBtn")
+    .addEventListener("click", startAnkiReview);
+}
 function renderQuestion() {
+  if (ankiComplete) {
+    renderAnkiCompleteScreen();
+    return;
+  }
+
+  mainCard.classList.remove("anki-complete-state");
+
   const island = activeIsland();
   const question = activeQuestion();
-
+document.getElementById("listenBtn").disabled = false;
+document.getElementById("shadowBtn").disabled = false;
+document.getElementById("prevBtn").disabled = false;
+document.getElementById("nextBtn").disabled = false;
   levelPill.textContent = island.level;
  counterPill.textContent = sessionActive
   ? `${sessionPosition + 1} / ${sessionCards.length}`
@@ -2078,31 +2655,121 @@ mainCard.classList.toggle(
   "speak-first-hidden",
   mode === "speak-first" && !speakFirstRevealed
 );
-
+mainCard.classList.toggle(
+  "anki-hidden",
+  mode === "anki" && !ankiRevealed
+);
 document.getElementById("hideBtn").textContent =
-  mode === "speak-first"
-    ? speakFirstRevealed
-      ? "Hide Answer"
-      : "Reveal Answer"
-    : hidden
-      ? "Show Spanish"
-      : "Hide Spanish";
+  mode === "anki"
+    ? ankiRevealed
+      ? "Hide Spanish"
+      : "Reveal Spanish"
+    : mode === "speak-first"
+      ? speakFirstRevealed
+        ? "Hide Answer"
+        : "Reveal Answer"
+      : hidden
+        ? "Show Spanish"
+        : "Hide Spanish";
 }
 
 function renderRating() {
   rating.innerHTML = "";
-  const current = activeQuestion().confidence || 1;
 
-  for (let i = 1; i <= 5; i += 1) {
+  if (mode === "anki") {
+    rating.classList.add("anki-rating");
+
+    const buttons = [
+      {
+        grade: "again",
+        label: "Again",
+        title: "I could not say it"
+      },
+      {
+        grade: "hard",
+        label: "Hard",
+        title: "I said it, but poorly or slowly"
+      },
+      {
+        grade: "good",
+        label: "Good",
+        title: "I said it well enough"
+      }
+    ];
+
+    buttons.forEach((item) => {
+      const button = document.createElement("button");
+      const preview = getAnkiSchedulePreview(activeQuestion(), item.grade);
+
+button.type = "button";
+button.innerHTML = `
+  <span>${item.label}</span>
+  <small>${preview.label}</small>
+`;
+button.title = item.title;
+
+      button.addEventListener("click", () => {
+        if (!ankiRevealed) {
+          showToast("Reveal the Spanish before rating.");
+          return;
+        }
+
+const currentCardIndex = activeQuestionIndex;
+const srs = scheduleAnkiCard(activeQuestion(), item.grade);
+
+ankiReviewStats.reviewed += 1;
+ankiReviewStats[item.grade] += 1;
+
+if (sessionActive && item.grade === "again") {
+  sessionCards.push(currentCardIndex);
+
+  saveData();
+
+  showToast("Card moved to the back of the pack.");
+
+  nextQuestion(1);
+  return;
+}
+
+saveData();
+
+showToast(`Next review in ${srs.nextReviewText}.`);
+
+if (sessionActive) {
+  if (sessionPosition >= sessionCards.length - 1) {
+    sessionActive = false;
+    ankiComplete = true;
+    render();
+    return;
+  }
+
+  nextQuestion(1);
+} else {
+  render();
+}
+      });
+
+      rating.appendChild(button);
+    });
+
+    return;
+  }
+
+  rating.classList.remove("anki-rating");
+
+  for (let score = 1; score <= 5; score += 1) {
     const button = document.createElement("button");
-    button.textContent = i;
-    button.className = i === current ? "active" : "";
+    button.type = "button";
+    button.textContent = score;
+    button.className =
+      score === activeQuestion().confidence ? "active" : "";
+
     button.addEventListener("click", () => {
-      activeQuestion().confidence = i;
+      activeQuestion().confidence = score;
       saveData();
       render();
-      showToast(`Confidence saved: ${i}/5`);
     });
+
     rating.appendChild(button);
   }
 }
@@ -2456,7 +3123,7 @@ const sessionSize = Math.min(
 
   hidden = mode === "recall";
 speakFirstRevealed = mode !== "speak-first";
-
+ankiRevealed = mode !== "anki";
   startSessionBtn.hidden = true;
   endSessionBtn.hidden = false;
 
@@ -2513,45 +3180,51 @@ function finishPracticeSession() {
   );
 }
 function nextQuestion(step = 1) {
-  if (sessionActive) {
-    sessionPosition += step;
+  animateCardChange(() => {
+    if (sessionActive) {
+      sessionPosition += step;
 
-    if (sessionPosition >= sessionCards.length) {
-      finishPracticeSession();
+      if (sessionPosition >= sessionCards.length) {
+        finishPracticeSession();
+        return;
+      }
+
+      if (sessionPosition < 0) {
+        sessionPosition = sessionCards.length - 1;
+      }
+
+      activeQuestionIndex = sessionCards[sessionPosition];
+
+      hidden = mode === "recall";
+      speakFirstRevealed = mode !== "speak-first";
+      ankiRevealed = mode !== "anki";
+
+      render();
+
+      if (shadowAutoPlay) {
+        setTimeout(shadow, 180);
+      }
+
       return;
+    
     }
 
-    if (sessionPosition < 0) {
-      sessionPosition = sessionCards.length - 1;
-    }
+    const total = activeIsland().questions.length;
 
-    activeQuestionIndex = sessionCards[sessionPosition];
+    activeQuestionIndex =
+      (activeQuestionIndex + step + total) % total;
 
+  
     hidden = mode === "recall";
     speakFirstRevealed = mode !== "speak-first";
+    ankiRevealed = mode !== "anki";
 
     render();
 
     if (shadowAutoPlay) {
-      setTimeout(shadow, 150);
+      setTimeout(shadow, 180);
     }
-
-    return;
-  }
-
-  const total = activeIsland().questions.length;
-
-  activeQuestionIndex =
-    (activeQuestionIndex + step + total) % total;
-
-  hidden = mode === "recall";
-  speakFirstRevealed = mode !== "speak-first";
-
-  render();
-
-  if (shadowAutoPlay) {
-    setTimeout(shadow, 150);
-  }
+  });
 }
 
 function randomQuestion() {
@@ -2570,9 +3243,33 @@ function randomQuestion() {
   activeQuestionIndex = next;
 hidden = mode === "recall";
 speakFirstRevealed = mode !== "speak-first";
-render();
+  ankiRevealed = mode !== "anki";
+animateCardChange(render);
 }
+  function animateCardChange(callback) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    callback();
+    return;
+  }
 
+  mainCard.classList.add("card-changing");
+
+  setTimeout(() => {
+    callback();
+
+    requestAnimationFrame(() => {
+      mainCard.classList.remove("card-changing");
+    });
+  }, 90);
+}
+function scrollToMainCard() {
+  requestAnimationFrame(() => {
+    mainCard.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+}
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
@@ -2734,6 +3431,13 @@ document.getElementById("shadowBtn").addEventListener("click", () => {
 });
 
 document.getElementById("hideBtn").addEventListener("click", () => {
+  
+  if (mode === "anki") {
+    ankiRevealed = !ankiRevealed;
+    renderQuestion();
+    return;
+  }
+
   if (mode === "speak-first") {
     speakFirstRevealed = !speakFirstRevealed;
     renderQuestion();
@@ -2768,10 +3472,11 @@ document.addEventListener("click", () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    appMenu.hidden = true;
-    closeEditCardModal();
-    closeSettingsModal();
-  }
+  appMenu.hidden = true;
+  closeEditCardModal();
+  closeSettingsModal();
+  closeLoginModal();
+}
 });
 
 document.querySelectorAll(".mode").forEach((button) => {
@@ -2780,16 +3485,26 @@ document.querySelectorAll(".mode").forEach((button) => {
     button.classList.add("active");
 
     mode = button.dataset.mode;
-hidden = mode === "recall";
-speakFirstRevealed = mode !== "speak-first";
 
-if (mode === "conversation") randomQuestion();
+    ankiComplete = false;
 
-if (mode === "speak-first") {
-  speakFirstRevealed = false;
-}
+    hidden = mode === "recall";
+    speakFirstRevealed = mode !== "speak-first";
+    ankiRevealed = mode !== "anki";
 
-renderQuestion();
+    if (mode === "anki") {
+      startAnkiReview();
+      scrollToMainCard();
+      return;
+    }
+
+    if (mode === "speak-first") {
+      speakFirstRevealed = false;
+    }
+
+    renderQuestion();
+    renderRating();
+    scrollToMainCard();
   });
 });
 
