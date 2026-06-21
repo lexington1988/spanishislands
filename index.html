@@ -262,7 +262,51 @@ h1 {
   display: grid;
   gap: 8px;
 }
+.island-more {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sea-dark);
+  font-size: 13px;
+  font-weight: 850;
+  text-align: center;
+}
 
+.island-more:hover,
+.island-more:focus-visible {
+  background: rgba(15, 107, 110, 0.08);
+}
+
+.island-picker {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 250, 0.56);
+}
+
+.island-picker button {
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.island-picker button:hover,
+.island-picker button:focus-visible,
+.island-picker button.active {
+  background: var(--sea-soft);
+  color: var(--sea-dark);
+}
 .island-item {
   width: 100%;
   border: 1px solid transparent;
@@ -454,7 +498,7 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
 }
 
 .hero-meta span {
@@ -467,7 +511,22 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.22);
   font-size: 13px;
 }
+.session-progress {
+  height: 8px;
+  margin: 0 0 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
 
+.session-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.86);
+  transition: width 240ms ease;
+}
 .question-hero h2 {
   margin: 0;
   max-width: 850px;
@@ -605,7 +664,27 @@ textarea {
   min-height: 82px;
   resize: vertical;
 }
+.inline-confidence {
+  margin-top: 18px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+}
 
+.inline-confidence-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.confidence-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
 .rating {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -952,7 +1031,19 @@ textarea {
     gap: 8px;
     margin-top: 20px;
   }
+.inline-confidence {
+  margin-top: 14px;
+  padding: 12px;
+}
 
+.inline-confidence-head {
+  display: block;
+}
+
+.confidence-hint {
+  display: block;
+  margin-top: 3px;
+}
   .button-row .btn {
     min-height: 42px;
     padding-left: 10px;
@@ -1130,13 +1221,18 @@ textarea {
 
     <section id="mainCard" class="main-card">
       <div class="question-hero">
-        <div class="hero-meta">
-          <span id="levelPill">Level 1</span>
-          <span id="counterPill">1 / 1</span>
-        </div>
-        <h2 id="questionEs">¿De qué trabajas?</h2>
-        <p id="questionEn">What do you do for work?</p>
-      </div>
+  <div class="hero-meta">
+    <span id="levelPill">Level 1</span>
+    <span id="counterPill">1 / 1</span>
+  </div>
+
+  <div id="sessionProgress" class="session-progress" hidden>
+    <div id="sessionProgressBar" class="session-progress-bar"></div>
+  </div>
+
+  <h2 id="questionEs">¿De qué trabajas?</h2>
+  <p id="questionEn">What do you do for work?</p>
+</div>
 
       <div class="practice-grid">
         <section class="answer-area">
@@ -1150,6 +1246,14 @@ textarea {
   <button id="hideBtn" class="btn soft">Hide Spanish</button>
   <button id="prevBtn" class="btn soft">Previous</button>
   <button id="nextBtn" class="btn soft">Next</button>
+</div>
+
+<div class="inline-confidence">
+  <div class="inline-confidence-head">
+    <span class="section-label">Confidence</span>
+    <span class="confidence-hint">How well could you say it?</span>
+  </div>
+  <div id="rating" class="rating"></div>
 </div>
 
 <div class="card-tools" aria-label="Card tools">
@@ -1196,8 +1300,8 @@ textarea {
 
 <div class="session-actions">
   <button id="startSessionBtn" class="btn primary full" type="button">
-    Start 10-card session
-  </button>
+  Start session
+</button>
 
   <button id="endSessionBtn" class="btn soft full" type="button" hidden>
     End Session
@@ -1211,10 +1315,6 @@ textarea {
         <p class="hint">Uses free browser voices. Edge and Chrome usually work best.</p>
       </div>
 
-      <div class="tool-block">
-        <label>Confidence</label>
-        <div id="rating" class="rating"></div>
-      </div>
 
       <div class="tool-block">
         <label for="newChunk">Add a reusable chunk</label>
@@ -1260,7 +1360,9 @@ textarea {
 
       <label for="settingDailyGoal">Daily input goal</label>
       <input id="settingDailyGoal" type="number" min="1" step="1" placeholder="Goal in minutes">
-
+<label for="settingSessionSize">Session card count</label>
+<input id="settingSessionSize" type="number" min="1" max="50" step="1" placeholder="Cards per session">
+<p class="hint">The session will use fewer cards if the island has fewer available.</p>
       <button id="resetTodayInputBtn" class="btn soft full" type="button">
         Reset Today’s Input
       </button>
@@ -1398,6 +1500,7 @@ let hidden = false;
 let shadowAutoPlay = false;
 let speakFirstRevealed = false;
 let sessionActive = false;
+let islandMenuOpen = false;
 let sessionCards = [];
 let sessionPosition = 0;
 let sessionStartedAt = 0;
@@ -1412,6 +1515,8 @@ const islandList = document.getElementById("islandList");
 const mainCard = document.getElementById("mainCard");
 const levelPill = document.getElementById("levelPill");
 const counterPill = document.getElementById("counterPill");
+const sessionProgress = document.getElementById("sessionProgress");
+const sessionProgressBar = document.getElementById("sessionProgressBar");
 const questionEs = document.getElementById("questionEs");
 const questionEn = document.getElementById("questionEn");
 const answerEs = document.getElementById("answerEs");
@@ -1433,6 +1538,7 @@ const settingVoiceRateText = document.getElementById("settingVoiceRateText");
 const settingShadowPause = document.getElementById("settingShadowPause");
 const settingShadowPauseText = document.getElementById("settingShadowPauseText");
 const settingDailyGoal = document.getElementById("settingDailyGoal");
+  const settingSessionSize = document.getElementById("settingSessionSize");
 const resetTodayInputBtn = document.getElementById("resetTodayInputBtn");
 const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
@@ -1453,9 +1559,10 @@ const editChunks = document.getElementById("editChunks");
 const duplicateCardBtn = document.getElementById("duplicateCardBtn");
   function loadSettings() {
   const defaults = {
-    voiceRate: 0.86,
-    shadowPauseMs: 1600
-  };
+  voiceRate: 0.86,
+  shadowPauseMs: 1600,
+  sessionSize: 10
+};
 
   try {
     const saved = JSON.parse(localStorage.getItem(settingsStorageKey)) || {};
@@ -1483,7 +1590,7 @@ function openSettingsModal() {
   settingShadowPauseText.textContent = `Shadow pause: ${appSettings.shadowPauseMs}ms`;
 
   settingDailyGoal.value = Math.round(dailyGoalMs / 60000);
-
+settingSessionSize.value = appSettings.sessionSize;
   settingsModal.hidden = false;
   appMenu.hidden = true;
 }
@@ -1496,7 +1603,7 @@ function saveSettingsFromModal() {
   const voiceRate = Number(settingVoiceRate.value);
   const shadowPauseMs = Number(settingShadowPause.value);
   const dailyGoalMinutes = Number(settingDailyGoal.value);
-
+const sessionSize = Number(settingSessionSize.value);
   if (!Number.isFinite(voiceRate) || voiceRate <= 0) {
     showToast("Voice rate is not valid.");
     return;
@@ -1511,9 +1618,13 @@ function saveSettingsFromModal() {
     showToast("Daily goal is not valid.");
     return;
   }
-
+if (!Number.isFinite(sessionSize) || sessionSize < 1 || sessionSize > 50) {
+  showToast("Session card count must be between 1 and 50.");
+  return;
+}
   appSettings.voiceRate = voiceRate;
-  appSettings.shadowPauseMs = shadowPauseMs;
+appSettings.shadowPauseMs = shadowPauseMs;
+appSettings.sessionSize = Math.round(sessionSize);
 
   dailyGoalMs = Math.round(dailyGoalMinutes * 60 * 1000);
 
@@ -1733,7 +1844,21 @@ function render() {
 function renderIslands() {
   islandList.innerHTML = "";
 
-  islands.forEach((island, index) => {
+  function selectIsland(index) {
+    if (sessionActive) {
+      endPracticeSession(false);
+    }
+
+    activeIslandIndex = index;
+    activeQuestionIndex = 0;
+    hidden = mode === "recall";
+    speakFirstRevealed = mode !== "speak-first";
+    islandMenuOpen = false;
+
+    render();
+  }
+
+  function createIslandCard(island, index) {
     const average = Math.round(
       island.questions.reduce(
         (sum, question) => sum + (question.confidence || 1),
@@ -1753,23 +1878,14 @@ function renderIslands() {
         <span>${island.name}</span>
         <span>${average}/5</span>
       </div>
-     <div class="island-meta">
-  ${island.questions.length} cards · ${island.level}
-</div>
+      <div class="island-meta">
+        ${island.questions.length} cards · ${island.level}
+      </div>
     `;
 
     button.addEventListener("click", () => {
-  if (sessionActive) {
-    endPracticeSession(false);
-  }
-
-  activeIslandIndex = index;
-activeQuestionIndex = 0;
-hidden = mode === "recall";
-speakFirstRevealed = mode !== "speak-first";
-
-render();
-});
+      selectIsland(index);
+    });
 
     const deleteButton = document.createElement("button");
     deleteButton.className = "island-delete";
@@ -1778,46 +1894,48 @@ render();
     deleteButton.title = `Delete ${island.name}`;
     deleteButton.setAttribute("aria-label", `Delete ${island.name}`);
 
-deleteButton.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
+    deleteButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-  if (islands.length === 1) {
-    showToast("You must keep at least one island.");
-    return;
-  }
+      if (islands.length === 1) {
+        showToast("You must keep at least one island.");
+        return;
+      }
 
-  const islandNameToDelete = island.name;
-  const cardCount = island.questions.length;
+      const islandNameToDelete = island.name;
+      const cardCount = island.questions.length;
 
-  const shouldDelete = confirm(
-    `Delete "${islandNameToDelete}" and all ${cardCount} cards?\n\nThis cannot be undone unless you exported a backup.`
-  );
+      const shouldDelete = confirm(
+        `Delete "${islandNameToDelete}" and all ${cardCount} cards?\n\nThis cannot be undone unless you exported a backup.`
+      );
 
-  if (!shouldDelete) return;
+      if (!shouldDelete) return;
 
-  islands.splice(index, 1);
+      islands.splice(index, 1);
 
-  if (activeIslandIndex === index) {
-    activeIslandIndex = Math.min(index, islands.length - 1);
-  } else if (activeIslandIndex > index) {
-    activeIslandIndex -= 1;
-  }
+      if (activeIslandIndex === index) {
+        activeIslandIndex = Math.min(index, islands.length - 1);
+      } else if (activeIslandIndex > index) {
+        activeIslandIndex -= 1;
+      }
 
-  activeQuestionIndex = 0;
-  hidden = false;
+      activeQuestionIndex = 0;
+      hidden = mode === "recall";
+      speakFirstRevealed = mode !== "speak-first";
+      islandMenuOpen = false;
 
-  if (playingIslandId === island.id) {
-    stopIslandPlayback(false);
-  }
+      if (playingIslandId === island.id) {
+        stopIslandPlayback(false);
+      }
 
-  saveData();
-  render();
+      saveData();
+      render();
 
-  showToast(`"${islandNameToDelete}" was deleted.`);
-});
+      showToast(`"${islandNameToDelete}" was deleted.`);
+    });
 
-       const audioButton = document.createElement("button");
+    const audioButton = document.createElement("button");
     const isPlaying = playingIslandId === island.id;
 
     audioButton.className =
@@ -1856,8 +1974,62 @@ deleteButton.addEventListener("click", (event) => {
       audioButton
     );
 
-    islandList.appendChild(wrapper);
+    return wrapper;
+  }
+
+  const visibleIndexes = islands
+    .map((island, index) => index)
+    .slice(0, 3);
+
+  if (!visibleIndexes.includes(activeIslandIndex)) {
+    visibleIndexes[visibleIndexes.length - 1] =
+      activeIslandIndex;
+  }
+
+  visibleIndexes.forEach((index) => {
+    islandList.appendChild(
+      createIslandCard(islands[index], index)
+    );
   });
+
+  if (islands.length > 3) {
+    const moreButton = document.createElement("button");
+    moreButton.className = "island-more";
+    moreButton.type = "button";
+    moreButton.textContent = islandMenuOpen
+      ? "Hide islands ▴"
+      : `All islands ▾`;
+
+    moreButton.addEventListener("click", () => {
+      islandMenuOpen = !islandMenuOpen;
+      renderIslands();
+    });
+
+    islandList.appendChild(moreButton);
+
+    if (islandMenuOpen) {
+      const picker = document.createElement("div");
+      picker.className = "island-picker";
+
+      islands.forEach((island, index) => {
+        const pickerButton = document.createElement("button");
+        pickerButton.type = "button";
+        pickerButton.className =
+          index === activeIslandIndex ? "active" : "";
+
+        pickerButton.textContent =
+          `${island.name} · ${island.questions.length} cards`;
+
+        pickerButton.addEventListener("click", () => {
+          selectIsland(index);
+        });
+
+        picker.appendChild(pickerButton);
+      });
+
+      islandList.appendChild(picker);
+    }
+  }
 
   updateDailyInputDisplay();
 }
@@ -1867,9 +2039,19 @@ function renderQuestion() {
   const question = activeQuestion();
 
   levelPill.textContent = island.level;
-  counterPill.textContent = sessionActive
-  ? `Session ${sessionPosition + 1} / ${sessionCards.length}`
+ counterPill.textContent = sessionActive
+  ? `${sessionPosition + 1} / ${sessionCards.length}`
   : `${activeQuestionIndex + 1} / ${island.questions.length}`;
+  if (sessionActive && sessionCards.length) {
+  const progressPercent =
+    ((sessionPosition + 1) / sessionCards.length) * 100;
+
+  sessionProgress.hidden = false;
+  sessionProgressBar.style.width = `${progressPercent}%`;
+} else {
+  sessionProgress.hidden = true;
+  sessionProgressBar.style.width = "0%";
+}
   questionEs.textContent = question.es;
   questionEn.textContent = question.en;
   answerEs.textContent = question.answerEs;
@@ -2255,7 +2437,11 @@ function startPracticeSession() {
     return;
   }
 
-  const sessionSize = Math.min(10, island.questions.length);
+  const requestedSessionSize = Number(appSettings.sessionSize) || 10;
+const sessionSize = Math.min(
+  requestedSessionSize,
+  island.questions.length
+);
 
   sessionCards = island.questions
     .map((question, index) => index)
