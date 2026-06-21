@@ -1945,11 +1945,12 @@ appSettings.ankiDailyLimit = Math.round(ankiDailyLimit);
     String(dailyGoalMs)
   );
 
-  saveSettingsToStorage();
-  updateDailyInputDisplay();
-  closeSettingsModal();
+saveSettingsToStorage();
+saveCloudData();
+updateDailyInputDisplay();
+closeSettingsModal();
 
-  showToast("Settings saved.");
+showToast("Settings saved.");
 }
 
 function resetTodayInput() {
@@ -2137,6 +2138,95 @@ function loadData() {
 
 function saveData() {
   localStorage.setItem(storageKey, JSON.stringify(islands));
+
+  saveCloudData();
+}
+
+async function saveCloudData() {
+  if (!currentUser) return;
+
+  try {
+    setSyncStatus("Saving...");
+
+    await db
+      .collection("users")
+      .doc(currentUser.uid)
+      .set(
+        {
+          islands,
+          appSettings,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+
+    const username = currentUser.email
+      ? currentUser.email.split("@")[0]
+      : "user";
+
+    const displayName =
+      username.charAt(0).toUpperCase() + username.slice(1);
+
+    setSyncStatus(`User: ${displayName}`, "synced");
+  } catch (error) {
+    setSyncStatus("Sync error", "offline");
+    showToast(error.message);
+  }
+}
+
+async function loadCloudData() {
+  if (!currentUser) return;
+
+  try {
+    setSyncStatus("Loading sync...");
+
+    const doc = await db
+      .collection("users")
+      .doc(currentUser.uid)
+      .get();
+
+    if (!doc.exists) {
+      await saveCloudData();
+      showToast("Local data uploaded to cloud.");
+      return;
+    }
+
+    const cloudData = doc.data();
+
+    if (Array.isArray(cloudData.islands)) {
+      islands = cloudData.islands;
+      localStorage.setItem(storageKey, JSON.stringify(islands));
+    }
+
+    if (cloudData.appSettings) {
+      appSettings = {
+        ...appSettings,
+        ...cloudData.appSettings
+      };
+
+      saveSettingsToStorage();
+    }
+
+    activeIslandIndex = 0;
+    activeQuestionIndex = 0;
+    ankiComplete = false;
+    sessionActive = false;
+
+    render();
+
+    const username = currentUser.email
+      ? currentUser.email.split("@")[0]
+      : "user";
+
+    const displayName =
+      username.charAt(0).toUpperCase() + username.slice(1);
+
+    setSyncStatus(`User: ${displayName}`, "synced");
+    showToast("Synced from cloud.");
+  } catch (error) {
+    setSyncStatus("Sync error", "offline");
+    showToast(error.message);
+  }
 }
 
 function activeIsland() {
@@ -2381,6 +2471,8 @@ auth.onAuthStateChanged((user) => {
     loginBtn.hidden = true;
     logoutBtn.hidden = false;
     setSyncStatus(`User: ${displayName}`, "synced");
+
+    loadCloudData();
   } else {
     loginBtn.hidden = false;
     logoutBtn.hidden = true;
