@@ -1678,6 +1678,7 @@ const inputStorageKey = "spanish-islands-daily-input-v1";
 let islands = loadData();
 let activeIslandIndex = 0;
 let activeQuestionIndex = 0;
+let weakIslandActive = false;
 let mode = "read";
 let hidden = false;
 let shadowAutoPlay = false;
@@ -2230,8 +2231,31 @@ async function loadCloudData() {
   }
 }
 
+function getWeakCards() {
+  return islands.flatMap((island, islandIndex) =>
+    island.questions
+      .map((question, questionIndex) => ({
+        islandIndex,
+        questionIndex,
+        question
+      }))
+      .filter(({ question }) => (question.confidence || 1) <= 2)
+  );
+}
+
 function activeIsland() {
-  return islands[activeIslandIndex];
+  if (!weakIslandActive) {
+    return islands[activeIslandIndex];
+  }
+
+  const weakCards = getWeakCards();
+
+  return {
+    id: "weak-cards",
+    name: "Weak Cards",
+    level: "Needs practice",
+    questions: weakCards.map((item) => item.question)
+  };
 }
 function dateKey(date = new Date()) {
   const copy = new Date(date);
@@ -2394,7 +2418,21 @@ const dueIndexes = allDueIndexes
 );
 }
 function activeQuestion() {
-  return activeIsland().questions[activeQuestionIndex];
+  const island = activeIsland();
+
+  if (!island.questions.length) {
+    return {
+      es: "No weak cards right now",
+      en: "You currently have no cards rated 1 or 2.",
+      answerEs: "Muy bien. No tienes tarjetas débiles ahora mismo.",
+      answerEn: "Very good. You do not have any weak cards right now.",
+      chunks: [],
+      confidence: 5,
+      notes: ""
+    };
+  }
+
+  return island.questions[activeQuestionIndex];
 }
 
 function render() {
@@ -2411,15 +2449,59 @@ function renderIslands() {
       endPracticeSession(false);
     }
 
+    weakIslandActive = false;
     activeIslandIndex = index;
-activeQuestionIndex = 0;
-ankiComplete = false;
-hidden = mode === "recall";
-speakFirstRevealed = mode !== "speak-first";
-ankiRevealed = mode !== "anki";
-islandMenuOpen = false;
+    activeQuestionIndex = 0;
+    ankiComplete = false;
+    hidden = mode === "recall";
+    speakFirstRevealed = mode !== "speak-first";
+    ankiRevealed = mode !== "anki";
+    islandMenuOpen = false;
 
-render();
+    render();
+  }
+
+  function selectWeakIsland() {
+    if (sessionActive) {
+      endPracticeSession(false);
+    }
+
+    weakIslandActive = true;
+    activeQuestionIndex = 0;
+    ankiComplete = false;
+    hidden = mode === "recall";
+    speakFirstRevealed = mode !== "speak-first";
+    ankiRevealed = mode !== "anki";
+    islandMenuOpen = false;
+
+    render();
+  }
+
+  function createWeakIslandCard() {
+    const weakCards = getWeakCards();
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "island-wrap";
+
+    const button = document.createElement("button");
+    button.className =
+      `island-item ${weakIslandActive ? "active" : ""}`;
+
+    button.innerHTML = `
+      <div class="island-title">
+        <span>Weak Cards</span>
+        <span>${weakCards.length}</span>
+      </div>
+      <div class="island-meta">
+        ${weakCards.length === 1 ? "1 card" : `${weakCards.length} cards`} rated 1 or 2
+      </div>
+    `;
+
+    button.addEventListener("click", selectWeakIsland);
+
+    wrapper.appendChild(button);
+
+    return wrapper;
   }
 
   function createIslandCard(island, index) {
@@ -2435,7 +2517,7 @@ render();
 
     const button = document.createElement("button");
     button.className =
-      `island-item ${index === activeIslandIndex ? "active" : ""}`;
+  `island-item ${!weakIslandActive && index === activeIslandIndex ? "active" : ""}`;
 
     button.innerHTML = `
       <div class="island-title">
@@ -2542,9 +2624,11 @@ render();
     return wrapper;
   }
 
-  const visibleIndexes = islands
-    .map((island, index) => index)
-    .slice(0, 3);
+  islandList.appendChild(createWeakIslandCard());
+
+const visibleIndexes = islands
+  .map((island, index) => index)
+  .slice(0, 3);
 
   if (!visibleIndexes.includes(activeIslandIndex)) {
     visibleIndexes[visibleIndexes.length - 1] =
@@ -2824,11 +2908,29 @@ if (sessionActive) {
     button.className =
       score === activeQuestion().confidence ? "active" : "";
 
-    button.addEventListener("click", () => {
-      activeQuestion().confidence = score;
-      saveData();
+   button.addEventListener("click", () => {
+  activeQuestion().confidence = score;
+  saveData();
+
+  if (weakIslandActive) {
+    const weakCards = getWeakCards();
+
+    if (!weakCards.length) {
+      weakIslandActive = false;
+      activeIslandIndex = 0;
+      activeQuestionIndex = 0;
+      showToast("No weak cards left. Great work!");
       render();
-    });
+      return;
+    }
+
+    if (activeQuestionIndex >= weakCards.length) {
+      activeQuestionIndex = weakCards.length - 1;
+    }
+  }
+
+  render();
+});
 
     rating.appendChild(button);
   }
@@ -3404,6 +3506,11 @@ function duplicateCurrentCard() {
   showToast("Card duplicated.");
 }
 function deleteCurrentCard() {
+  if (weakIslandActive) {
+    showToast("Switch to the original island to delete this card.");
+    return;
+  }
+
   const island = activeIsland();
 
   if (island.questions.length === 1) {
