@@ -111,6 +111,8 @@ button {
     padding-left: 12px;
     padding-right: 12px;
   }
+}
+
 .sync-status {
   margin-left: auto;
   color: var(--muted);
@@ -2222,7 +2224,6 @@ async function loadCloudData() {
       username.charAt(0).toUpperCase() + username.slice(1);
 
     setSyncStatus(`User: ${displayName}`, "synced");
-    showToast("Synced from cloud.");
   } catch (error) {
     setSyncStatus("Sync error", "offline");
     showToast(error.message);
@@ -2445,40 +2446,7 @@ render();
   ${island.questions.length} cards${countDueCards(island) ? ` · ${countDueCards(island)} due` : ""} · ${island.level}
 </div>
     `;
-loginBtn.addEventListener("click", openLoginModal);
-logoutBtn.addEventListener("click", signOut);
-cancelLoginBtn.addEventListener("click", closeLoginModal);
-createAccountBtn.addEventListener("click", createAccount);
-signInBtn.addEventListener("click", signIn);
 
-loginPassword.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    signIn();
-  }
-});
-
-auth.onAuthStateChanged((user) => {
-  currentUser = user;
-
-  if (user) {
-    const username = user.email
-      ? user.email.split("@")[0]
-      : "user";
-
-    const displayName =
-      username.charAt(0).toUpperCase() + username.slice(1);
-
-    loginBtn.hidden = true;
-    logoutBtn.hidden = false;
-    setSyncStatus(`User: ${displayName}`, "synced");
-
-    loadCloudData();
-  } else {
-    loginBtn.hidden = false;
-    logoutBtn.hidden = true;
-    setSyncStatus("Not signed in");
-  }
-});
     button.addEventListener("click", () => {
       selectIsland(index);
     });
@@ -3464,6 +3432,40 @@ function deleteCurrentCard() {
 
   showToast("Card deleted.");
 }
+  loginBtn.addEventListener("click", openLoginModal);
+logoutBtn.addEventListener("click", signOut);
+cancelLoginBtn.addEventListener("click", closeLoginModal);
+createAccountBtn.addEventListener("click", createAccount);
+signInBtn.addEventListener("click", signIn);
+
+loginPassword.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    signIn();
+  }
+});
+
+auth.onAuthStateChanged((user) => {
+  currentUser = user;
+
+  if (user) {
+    const username = user.email
+      ? user.email.split("@")[0]
+      : "user";
+
+    const displayName =
+      username.charAt(0).toUpperCase() + username.slice(1);
+
+    loginBtn.hidden = true;
+    logoutBtn.hidden = false;
+    setSyncStatus(`User: ${displayName}`, "synced");
+
+    loadCloudData();
+  } else {
+    loginBtn.hidden = false;
+    logoutBtn.hidden = true;
+    setSyncStatus("Not signed in");
+  }
+});
   dailyGoalBtn.addEventListener("click", setDailyGoal);
   settingsBtn.addEventListener("click", openSettingsModal);
 cancelSettingsBtn.addEventListener("click", closeSettingsModal);
