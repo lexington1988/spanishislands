@@ -283,7 +283,24 @@ h1 {
   margin: 5px 0 0;
   font-size: 20px;
 }
+.tag-filter-box {
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
 
+.tag-filter-box label {
+  color: var(--sea);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tag-filter-box select {
+  min-height: 40px;
+  border-radius: 13px;
+}
 .island-list {
   padding: 10px;
   display: grid;
@@ -608,7 +625,32 @@ h1 {
   background: #fff;
   font-weight: 750;
 }
+  .spoken-answer-area {
+  display: grid;
+  gap: 10px;
+}
 
+.answer-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.my-answer-box {
+  min-height: 150px;
+  line-height: 1.5;
+}
+
+#speakAnswerBtn.recording {
+  background: #a33b32;
+  color: #fff;
+  border-color: transparent;
+}
+.tag-chip {
+  color: var(--muted);
+  background: rgba(216, 238, 234, 0.6);
+  cursor: default;
+}
 .tool-block {
   padding: 16px;
   border-top: 1px solid var(--line);
@@ -1351,7 +1393,14 @@ textarea {
   </div>
 </div>
 </div>
-      <div id="islandList" class="island-list"></div>
+      <div id="tagFilterBox" class="tag-filter-box">
+  <label for="tagFilterSelect">Filter by tag</label>
+  <select id="tagFilterSelect">
+    <option value="">All tags</option>
+  </select>
+</div>
+
+<div id="islandList" class="island-list"></div>
     </aside>
 
     <section id="mainCard" class="main-card">
@@ -1401,10 +1450,30 @@ textarea {
 </div>
         </section>
 
-        <section class="chunk-area">
-          <span class="section-label">Reusable chunks</span>
-          <div id="chunks" class="chunks"></div>
-        </section>
+        <section class="spoken-answer-area">
+  <span class="section-label">My spoken answer</span>
+  <p class="hint">Tap the mic and answer in Spanish.</p>
+
+  <div class="answer-tools">
+    <button id="speakAnswerBtn" class="btn primary full" type="button">
+      🎙 Speak Answer
+    </button>
+
+    <button id="clearAnswerBtn" class="btn soft full" type="button">
+      Clear
+    </button>
+  </div>
+
+  <textarea
+    id="myAnswerText"
+    class="my-answer-box"
+    placeholder="Your spoken answer will appear here..."
+  ></textarea>
+
+  <p id="speechSupportMsg" class="hint"></p>
+
+  <div id="chunks" class="chunks" hidden></div>
+</section>
       </div>
     </section>
 
@@ -1428,9 +1497,9 @@ textarea {
   <span>English only. Say the Spanish, reveal, then rate.</span>
 </button>
 
-<button class="mode" data-mode="speak-first">
-  <strong>Speak First mode</strong>
-  <span>See the question, speak your answer, then reveal the model.</span>
+<button class="mode" data-mode="conversation">
+  <strong>Conversation mode</strong>
+  <span>Answer the questions aloud like a real conversation.</span>
 </button>
 
 <div class="session-actions">
@@ -1470,7 +1539,8 @@ textarea {
         <textarea id="newAnswerEs" placeholder="Spanish model answer"></textarea>
         <input id="newAnswerEn" placeholder="English meaning">
         <input id="newQuestionChunks" placeholder="Chunks separated by commas">
-        <button id="addQuestionBtn" class="btn primary full">Add Question</button>
+<input id="newQuestionTags" placeholder="Tags separated by commas, e.g. work, opinion, problem">
+<button id="addQuestionBtn" class="btn primary full">Add Question</button>
       </details>
     </aside>
   </main>
@@ -1567,9 +1637,13 @@ textarea {
       <label for="editAnswerEn">English answer</label>
       <textarea id="editAnswerEn" placeholder="English meaning"></textarea>
 
-      <label for="editChunks">Chunks</label>
-      <input id="editChunks" placeholder="Chunks separated by commas">
-      <p class="hint">Separate chunks with commas, for example: Soy auditor, trabajo como, revisar el trabajo</p>
+     <label for="editChunks">Chunks</label>
+<input id="editChunks" placeholder="Chunks separated by commas">
+<p class="hint">Separate chunks with commas, for example: Soy auditor, trabajo como, revisar el trabajo</p>
+
+<label for="editTags">Tags</label>
+<input id="editTags" placeholder="Tags separated by commas, e.g. work, opinion, problem">
+<p class="hint">Use tags to organise cards, for example: work, safety, problem, opinion</p>
     </div>
 
     <div class="modal-actions">
@@ -1679,6 +1753,7 @@ let islands = loadData();
 let activeIslandIndex = 0;
 let activeQuestionIndex = 0;
 let weakIslandActive = false;
+let activeTagFilter = "";
 let mode = "read";
 let hidden = false;
 let shadowAutoPlay = false;
@@ -1704,6 +1779,7 @@ let practicePlaybackStartedAt = 0;
 let practicePlaybackTimer = null;
 let practicePlaybackToken = 0;
 const islandList = document.getElementById("islandList");
+  const tagFilterSelect = document.getElementById("tagFilterSelect");
 const mainCard = document.getElementById("mainCard");
 const levelPill = document.getElementById("levelPill");
 const counterPill = document.getElementById("counterPill");
@@ -1714,6 +1790,10 @@ const questionEn = document.getElementById("questionEn");
 const answerEs = document.getElementById("answerEs");
 const answerEn = document.getElementById("answerEn");
 const chunks = document.getElementById("chunks");
+const speakAnswerBtn = document.getElementById("speakAnswerBtn");
+const clearAnswerBtn = document.getElementById("clearAnswerBtn");
+const myAnswerText = document.getElementById("myAnswerText");
+const speechSupportMsg = document.getElementById("speechSupportMsg");
 const rating = document.getElementById("rating");
 const voiceSelect = document.getElementById("voiceSelect");
 const toast = document.getElementById("toast");
@@ -1759,6 +1839,7 @@ const editQuestionEn = document.getElementById("editQuestionEn");
 const editAnswerEs = document.getElementById("editAnswerEs");
 const editAnswerEn = document.getElementById("editAnswerEn");
 const editChunks = document.getElementById("editChunks");
+  const editTags = document.getElementById("editTags");
 const duplicateCardBtn = document.getElementById("duplicateCardBtn");
   function loadSettings() {
  const defaults = {
@@ -2230,7 +2311,257 @@ async function loadCloudData() {
     showToast(error.message);
   }
 }
+  function parseTags(value) {
+  return (value || "")
+    .split(",")
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+}
+  function getQuestionTags(question) {
+  return Array.isArray(question.tags)
+    ? question.tags.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean)
+    : [];
+}
 
+function questionHasTag(question, tag) {
+  if (!tag) return true;
+
+  return getQuestionTags(question).includes(tag);
+}
+
+function getAllTags() {
+  const tags = new Set();
+
+  islands.forEach((island) => {
+    island.questions.forEach((question) => {
+      getQuestionTags(question).forEach((tag) => tags.add(tag));
+    });
+  });
+
+  return [...tags].sort();
+}
+
+function applyTagFilterToIsland(island) {
+  if (!activeTagFilter) {
+    return island;
+  }
+
+  return {
+    ...island,
+    questions: island.questions.filter((question) =>
+      questionHasTag(question, activeTagFilter)
+    )
+  };
+}
+
+function renderTagFilter() {
+  if (!tagFilterSelect) return;
+
+  const allTags = getAllTags();
+  const currentValue = activeTagFilter;
+
+  tagFilterSelect.innerHTML = "";
+
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "All tags";
+  tagFilterSelect.appendChild(allOption);
+
+  allTags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = `#${tag}`;
+    tagFilterSelect.appendChild(option);
+  });
+
+  tagFilterSelect.value = allTags.includes(currentValue)
+    ? currentValue
+    : "";
+}
+  let answerRecognition = null;
+let answerRecording = false;
+
+function getSpeechRecognitionConstructor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition;
+}
+
+function speechRecognitionSupported() {
+  return Boolean(getSpeechRecognitionConstructor());
+}
+
+function updateSpeakAnswerButton() {
+  if (!speakAnswerBtn) return;
+
+  speakAnswerBtn.classList.toggle("recording", answerRecording);
+  speakAnswerBtn.textContent = answerRecording
+    ? "■ Stop Recording"
+    : "🎙 Speak Answer";
+}
+
+function startAnswerDictation() {
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+
+  if (!SpeechRecognition) {
+    if (speechSupportMsg) {
+      speechSupportMsg.textContent =
+        "Speech recognition is not supported in this browser. Chrome or Edge usually work best.";
+    }
+
+    showToast("Speech recognition is not supported in this browser.");
+    return;
+  }
+
+  if (answerRecording && answerRecognition) {
+    answerRecognition.stop();
+    return;
+  }
+
+  const question = activeQuestion();
+
+  answerRecognition = new SpeechRecognition();
+  answerRecognition.lang = "es-ES";
+  answerRecognition.interimResults = true;
+  answerRecognition.continuous = true;
+
+  answerRecording = true;
+  updateSpeakAnswerButton();
+
+  if (speechSupportMsg) {
+    speechSupportMsg.textContent = "Listening... speak in Spanish.";
+  }
+
+  let finalTranscript = question.myAnswer || "";
+
+  answerRecognition.onresult = (event) => {
+    let interimTranscript = "";
+
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      const transcript = event.results[index][0].transcript;
+
+      if (event.results[index].isFinal) {
+        finalTranscript += `${finalTranscript ? " " : ""}${transcript.trim()}`;
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    const combined = `${finalTranscript}${interimTranscript ? " " + interimTranscript : ""}`.trim();
+
+    myAnswerText.value = combined;
+    question.myAnswer = combined;
+  };
+
+  answerRecognition.onerror = (event) => {
+    answerRecording = false;
+    updateSpeakAnswerButton();
+
+    if (speechSupportMsg) {
+      speechSupportMsg.textContent = "Speech recognition stopped. Try again if needed.";
+    }
+
+    showToast(event.error ? `Speech error: ${event.error}` : "Speech recognition error.");
+  };
+
+  answerRecognition.onend = () => {
+    answerRecording = false;
+    updateSpeakAnswerButton();
+
+    activeQuestion().myAnswer = myAnswerText.value.trim();
+    saveData();
+
+    if (speechSupportMsg) {
+      speechSupportMsg.textContent = "Recording stopped.";
+    }
+  };
+
+  answerRecognition.start();
+}
+
+function clearMyAnswer() {
+  const question = activeQuestion();
+
+  question.myAnswer = "";
+  myAnswerText.value = "";
+
+  saveData();
+  showToast("My answer cleared.");
+}
+function createConfidenceByMode(score = 3) {
+  return {
+    read: score,
+    recall: score,
+    conversation: score,
+    speakFirst: score,
+    anki: score
+  };
+}
+
+function getConfidenceModeKey() {
+  if (mode === "conversation") return "conversation";
+  if (mode === "recall") return "recall";
+  if (mode === "anki") return "anki";
+
+  return "read";
+}
+
+function getConfidenceScores(question) {
+  const oldScore = Number(question.confidence);
+  const fallbackScore =
+    Number.isFinite(oldScore) && oldScore >= 1 && oldScore <= 5
+      ? oldScore
+      : 3;
+
+  if (
+    !question.confidenceByMode ||
+    typeof question.confidenceByMode !== "object"
+  ) {
+    question.confidenceByMode = createConfidenceByMode(fallbackScore);
+  }
+
+  const defaults = createConfidenceByMode(fallbackScore);
+
+  question.confidenceByMode = {
+    ...defaults,
+    ...question.confidenceByMode
+  };
+
+  return question.confidenceByMode;
+}
+
+function getModeConfidence(question, modeKey = getConfidenceModeKey()) {
+  const scores = getConfidenceScores(question);
+  const score = Number(scores[modeKey]);
+
+  return Number.isFinite(score) && score >= 1 && score <= 5
+    ? score
+    : 3;
+}
+
+function setModeConfidence(question, score, modeKey = getConfidenceModeKey()) {
+  const cleanScore = Math.min(
+    5,
+    Math.max(1, Math.round(Number(score) || 3))
+  );
+
+  const scores = getConfidenceScores(question);
+
+  scores[modeKey] = cleanScore;
+  question.confidenceByMode = scores;
+
+  // Keep this old value for backwards compatibility with older app code/imports.
+  question.confidence = cleanScore;
+}
+
+function isWeakQuestion(question) {
+  const scores = getConfidenceScores(question);
+
+  return [
+    scores.recall,
+    scores.conversation,
+    scores.speakFirst,
+    scores.anki
+  ].some((score) => Number(score) <= 2);
+}
 function getWeakCards() {
   return islands.flatMap((island, islandIndex) =>
     island.questions
@@ -2239,23 +2570,27 @@ function getWeakCards() {
         questionIndex,
         question
       }))
-      .filter(({ question }) => (question.confidence || 1) <= 2)
+      .filter(({ question }) => isWeakQuestion(question))
   );
 }
 
 function activeIsland() {
+  let island;
+
   if (!weakIslandActive) {
-    return islands[activeIslandIndex];
+    island = islands[activeIslandIndex];
+  } else {
+    const weakCards = getWeakCards();
+
+    island = {
+      id: "weak-cards",
+      name: "Weak Cards",
+      level: "Needs practice",
+      questions: weakCards.map((item) => item.question)
+    };
   }
 
-  const weakCards = getWeakCards();
-
-  return {
-    id: "weak-cards",
-    name: "Weak Cards",
-    level: "Needs practice",
-    questions: weakCards.map((item) => item.question)
-  };
+  return applyTagFilterToIsland(island);
 }
 function dateKey(date = new Date()) {
   const copy = new Date(date);
@@ -2436,6 +2771,7 @@ function activeQuestion() {
 }
 
 function render() {
+  renderTagFilter();
   renderIslands();
   renderQuestion();
   renderRating();
@@ -2450,11 +2786,12 @@ function renderIslands() {
     }
 
     weakIslandActive = false;
-    activeIslandIndex = index;
-    activeQuestionIndex = 0;
+activeIslandIndex = index;
+activeQuestionIndex = 0;
+activeTagFilter = "";
     ankiComplete = false;
     hidden = mode === "recall";
-    speakFirstRevealed = mode !== "speak-first";
+    speakFirstRevealed = mode !== "conversation";
     ankiRevealed = mode !== "anki";
     islandMenuOpen = false;
 
@@ -2467,10 +2804,11 @@ function renderIslands() {
     }
 
     weakIslandActive = true;
-    activeQuestionIndex = 0;
+activeQuestionIndex = 0;
+activeTagFilter = "";
     ankiComplete = false;
     hidden = mode === "recall";
-    speakFirstRevealed = mode !== "speak-first";
+    speakFirstRevealed = mode !== "conversation";
     ankiRevealed = mode !== "anki";
     islandMenuOpen = false;
 
@@ -2568,7 +2906,7 @@ function renderIslands() {
 
       activeQuestionIndex = 0;
       hidden = mode === "recall";
-      speakFirstRevealed = mode !== "speak-first";
+      speakFirstRevealed = mode !== "conversation";
       ankiRevealed = mode !== "anki";
       islandMenuOpen = false;
 
@@ -2760,9 +3098,13 @@ document.getElementById("shadowBtn").disabled = false;
 document.getElementById("prevBtn").disabled = false;
 document.getElementById("nextBtn").disabled = false;
   levelPill.textContent = island.level;
- counterPill.textContent = sessionActive
+ const totalQuestions = island.questions.length;
+
+counterPill.textContent = sessionActive
   ? `${sessionPosition + 1} / ${sessionCards.length}`
-  : `${activeQuestionIndex + 1} / ${island.questions.length}`;
+  : totalQuestions
+    ? `${activeQuestionIndex + 1} / ${totalQuestions}`
+    : "0 / 0";
   if (sessionActive && sessionCards.length) {
   const progressPercent =
     ((sessionPosition + 1) / sessionCards.length) * 100;
@@ -2779,14 +3121,32 @@ document.getElementById("nextBtn").disabled = false;
   answerEn.textContent = question.answerEn;
 
   chunks.innerHTML = "";
-  question.chunks.forEach((chunkText) => {
-    const chip = document.createElement("button");
-    chip.className = "chunk";
-    chip.textContent = chunkText;
-    chip.title = "Click to hear this chunk";
-    chip.addEventListener("click", () => speak(chunkText));
-    chunks.appendChild(chip);
-  });
+
+const tagList = Array.isArray(question.tags) ? question.tags : [];
+
+tagList.forEach((tagText) => {
+  const tag = document.createElement("span");
+  tag.className = "chunk tag-chip";
+  tag.textContent = `#${tagText}`;
+  tag.title = "Card tag";
+  chunks.appendChild(tag);
+});
+
+if (chunks) {
+  chunks.innerHTML = "";
+}
+
+if (myAnswerText) {
+  myAnswerText.value = question.myAnswer || "";
+}
+
+if (speechSupportMsg) {
+  speechSupportMsg.textContent = speechRecognitionSupported()
+    ? "Speech recognition ready."
+    : "Speech recognition is not supported in this browser. Chrome or Edge usually work best.";
+}
+
+updateSpeakAnswerButton();
 
  document.getElementById("wanted").value = question.notes || "";
 
@@ -2797,7 +3157,7 @@ mainCard.classList.toggle(
 
 mainCard.classList.toggle(
   "speak-first-hidden",
-  mode === "speak-first" && !speakFirstRevealed
+  mode === "conversation" && !speakFirstRevealed
 );
 mainCard.classList.toggle(
   "anki-hidden",
@@ -2808,7 +3168,7 @@ document.getElementById("hideBtn").textContent =
     ? ankiRevealed
       ? "Hide Spanish"
       : "Reveal Spanish"
-    : mode === "speak-first"
+    : mode === "conversation"
       ? speakFirstRevealed
         ? "Hide Answer"
         : "Reveal Answer"
@@ -2820,24 +3180,33 @@ document.getElementById("hideBtn").textContent =
 function renderRating() {
   rating.innerHTML = "";
 
+  const confidenceHint = document.querySelector(".confidence-hint");
+
   if (mode === "anki") {
     rating.classList.add("anki-rating");
+
+    if (confidenceHint) {
+      confidenceHint.textContent = "Rate your Anki recall for this card.";
+    }
 
     const buttons = [
       {
         grade: "again",
         label: "Again",
-        title: "I could not say it"
+        title: "I could not say it",
+        confidenceScore: 1
       },
       {
         grade: "hard",
         label: "Hard",
-        title: "I said it, but poorly or slowly"
+        title: "I said it, but poorly or slowly",
+        confidenceScore: 2
       },
       {
         grade: "good",
         label: "Good",
-        title: "I said it well enough"
+        title: "I said it well enough",
+        confidenceScore: 4
       }
     ];
 
@@ -2845,12 +3214,12 @@ function renderRating() {
       const button = document.createElement("button");
       const preview = getAnkiSchedulePreview(activeQuestion(), item.grade);
 
-button.type = "button";
-button.innerHTML = `
-  <span>${item.label}</span>
-  <small>${preview.label}</small>
-`;
-button.title = item.title;
+      button.type = "button";
+      button.innerHTML = `
+        <span>${item.label}</span>
+        <small>${preview.label}</small>
+      `;
+      button.title = item.title;
 
       button.addEventListener("click", () => {
         if (!ankiRevealed) {
@@ -2858,39 +3227,37 @@ button.title = item.title;
           return;
         }
 
-const currentCardIndex = activeQuestionIndex;
-const srs = scheduleAnkiCard(activeQuestion(), item.grade);
+        const currentCardIndex = activeQuestionIndex;
+        const question = activeQuestion();
 
-ankiReviewStats.reviewed += 1;
-ankiReviewStats[item.grade] += 1;
+        setModeConfidence(question, item.confidenceScore, "anki");
 
-if (sessionActive && item.grade === "again") {
-  sessionCards.push(currentCardIndex);
+        const srs = scheduleAnkiCard(question, item.grade);
 
-  saveData();
+        ankiReviewStats.reviewed += 1;
+        ankiReviewStats[item.grade] += 1;
 
-  showToast("Card moved to the back of the pack.");
+        if (sessionActive && item.grade === "again") {
+          sessionCards.push(currentCardIndex);
 
-  nextQuestion(1);
-  return;
-}
+          saveData();
 
-saveData();
+          showToast("Card moved to the back of the pack.");
 
-showToast(`Next review in ${srs.nextReviewText}.`);
+          nextQuestion(1);
+          return;
+        }
 
-if (sessionActive) {
-  if (sessionPosition >= sessionCards.length - 1) {
-    sessionActive = false;
-    ankiComplete = true;
-    render();
-    return;
-  }
+        saveData();
 
-  nextQuestion(1);
-} else {
-  render();
-}
+        showToast(`Next review in ${srs.nextReviewText}.`);
+
+        if (sessionActive) {
+          nextQuestion(1);
+          return;
+        }
+
+        render();
       });
 
       rating.appendChild(button);
@@ -2901,36 +3268,64 @@ if (sessionActive) {
 
   rating.classList.remove("anki-rating");
 
+  const modeKey = getConfidenceModeKey();
+
+  const modeLabels = {
+  read: "reading",
+  recall: "recall",
+  conversation: "conversation",
+  speakFirst: "speak first"
+};
+
+  if (confidenceHint) {
+    confidenceHint.textContent = `How well could you do this in ${modeLabels[modeKey] || "this mode"}?`;
+  }
+
+  const currentScore = getModeConfidence(activeQuestion(), modeKey);
+
   for (let score = 1; score <= 5; score += 1) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = score;
-    button.className =
-      score === activeQuestion().confidence ? "active" : "";
+    button.className = score === currentScore ? "active" : "";
 
-   button.addEventListener("click", () => {
-  activeQuestion().confidence = score;
-  saveData();
+    button.addEventListener("click", () => {
+      const question = activeQuestion();
 
-  if (weakIslandActive) {
-    const weakCards = getWeakCards();
+      setModeConfidence(question, score, modeKey);
+      saveData();
 
-    if (!weakCards.length) {
-      weakIslandActive = false;
-      activeIslandIndex = 0;
-      activeQuestionIndex = 0;
-      showToast("No weak cards left. Great work!");
-      render();
-      return;
-    }
+      if (weakIslandActive) {
+        const stillWeak = isWeakQuestion(question);
+        const weakCards = getWeakCards();
 
-    if (activeQuestionIndex >= weakCards.length) {
-      activeQuestionIndex = weakCards.length - 1;
-    }
-  }
+        if (!weakCards.length) {
+          weakIslandActive = false;
+          activeIslandIndex = 0;
+          activeQuestionIndex = 0;
+          showToast("No weak cards left. Great work!");
+          render();
+          return;
+        }
 
-  render();
-});
+        if (!stillWeak) {
+          if (activeQuestionIndex >= weakCards.length) {
+            activeQuestionIndex = weakCards.length - 1;
+          }
+
+          render();
+          return;
+        }
+
+        if (activeQuestionIndex >= weakCards.length) {
+          activeQuestionIndex = weakCards.length - 1;
+          render();
+          return;
+        }
+      }
+
+      nextQuestion(1);
+    });
 
     rating.appendChild(button);
   }
@@ -3284,7 +3679,7 @@ const sessionSize = Math.min(
   activeQuestionIndex = sessionCards[sessionPosition];
 
   hidden = mode === "recall";
-speakFirstRevealed = mode !== "speak-first";
+speakFirstRevealed = mode !== "conversation";
 ankiRevealed = mode !== "anki";
   startSessionBtn.hidden = true;
   endSessionBtn.hidden = false;
@@ -3358,7 +3753,7 @@ function nextQuestion(step = 1) {
       activeQuestionIndex = sessionCards[sessionPosition];
 
       hidden = mode === "recall";
-      speakFirstRevealed = mode !== "speak-first";
+      speakFirstRevealed = mode !== "conversation";
       ankiRevealed = mode !== "anki";
 
       render();
@@ -3371,14 +3766,20 @@ function nextQuestion(step = 1) {
     
     }
 
-    const total = activeIsland().questions.length;
+   const total = activeIsland().questions.length;
 
-    activeQuestionIndex =
-      (activeQuestionIndex + step + total) % total;
+if (!total) {
+  render();
+  showToast("No cards match this tag.");
+  return;
+}
+
+activeQuestionIndex =
+  (activeQuestionIndex + step + total) % total;
 
   
     hidden = mode === "recall";
-    speakFirstRevealed = mode !== "speak-first";
+    speakFirstRevealed = mode !== "conversation";
     ankiRevealed = mode !== "anki";
 
     render();
@@ -3404,7 +3805,7 @@ function randomQuestion() {
 
   activeQuestionIndex = next;
 hidden = mode === "recall";
-speakFirstRevealed = mode !== "speak-first";
+speakFirstRevealed = mode !== "conversation";
   ankiRevealed = mode !== "anki";
 animateCardChange(render);
 }
@@ -3447,7 +3848,9 @@ function openEditCardModal() {
   editChunks.value = Array.isArray(question.chunks)
     ? question.chunks.join(", ")
     : "";
-
+editTags.value = Array.isArray(question.tags)
+  ? question.tags.join(", ")
+  : "";
   editCardModal.hidden = false;
 
   setTimeout(() => {
@@ -3478,7 +3881,7 @@ function saveEditedCard() {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-
+question.tags = parseTags(editTags.value);
   saveData();
   closeEditCardModal();
   render();
@@ -3573,8 +3976,20 @@ auth.onAuthStateChanged((user) => {
     setSyncStatus("Not signed in");
   }
 });
-  dailyGoalBtn.addEventListener("click", setDailyGoal);
-  settingsBtn.addEventListener("click", openSettingsModal);
+ dailyGoalBtn.addEventListener("click", setDailyGoal);
+
+tagFilterSelect.addEventListener("change", () => {
+  activeTagFilter = tagFilterSelect.value;
+  activeQuestionIndex = 0;
+  ankiComplete = false;
+  hidden = mode === "recall";
+  speakFirstRevealed = mode !== "conversation";
+  ankiRevealed = mode !== "anki";
+
+  render();
+});
+
+settingsBtn.addEventListener("click", openSettingsModal);
 cancelSettingsBtn.addEventListener("click", closeSettingsModal);
 saveSettingsBtn.addEventListener("click", saveSettingsFromModal);
 resetTodayInputBtn.addEventListener("click", resetTodayInput);
@@ -3606,6 +4021,8 @@ editCardModal.addEventListener("click", (event) => {
   }
 });
 document.getElementById("listenBtn").addEventListener("click", () => speak(activeQuestion().answerEs));
+  speakAnswerBtn.addEventListener("click", startAnswerDictation);
+clearAnswerBtn.addEventListener("click", clearMyAnswer);
 document.getElementById("shadowBtn").addEventListener("click", () => {
   shadowAutoPlay = !shadowAutoPlay;
 
@@ -3639,7 +4056,7 @@ document.getElementById("hideBtn").addEventListener("click", () => {
     return;
   }
 
-  if (mode === "speak-first") {
+  if (mode === "conversation") {
     speakFirstRevealed = !speakFirstRevealed;
     renderQuestion();
     return;
@@ -3690,7 +4107,7 @@ document.querySelectorAll(".mode").forEach((button) => {
     ankiComplete = false;
 
     hidden = mode === "recall";
-    speakFirstRevealed = mode !== "speak-first";
+    speakFirstRevealed = mode !== "conversation";
     ankiRevealed = mode !== "anki";
 
     if (mode === "anki") {
@@ -3699,7 +4116,7 @@ document.querySelectorAll(".mode").forEach((button) => {
       return;
     }
 
-    if (mode === "speak-first") {
+    if (mode === "conversation") {
       speakFirstRevealed = false;
     }
 
@@ -3761,7 +4178,7 @@ document.getElementById("addQuestionBtn").addEventListener("click", () => {
   const answerEsValue = document.getElementById("newAnswerEs").value.trim();
   const answerEnValue = document.getElementById("newAnswerEn").value.trim();
   const chunkValue = document.getElementById("newQuestionChunks").value.trim();
-
+const tagValue = document.getElementById("newQuestionTags").value.trim();
   if (!es || !answerEsValue) {
     showToast("Add at least a Spanish question and answer.");
     return;
@@ -3772,16 +4189,19 @@ document.getElementById("addQuestionBtn").addEventListener("click", () => {
     en: en || "New speaking prompt",
     answerEs: answerEsValue,
     answerEn: answerEnValue || "",
-    chunks: chunkValue ? chunkValue.split(",").map((item) => item.trim()).filter(Boolean) : [],
-    confidence: 1,
-    notes: ""
+  chunks: chunkValue ? chunkValue.split(",").map((item) => item.trim()).filter(Boolean) : [],
+tags: parseTags(tagValue),
+myAnswer: "",
+confidence: 1,
+confidenceByMode: createConfidenceByMode(1),
+notes: ""
   });
 
   activeQuestionIndex = activeIsland().questions.length - 1;
 
-  ["newQuestionEs", "newQuestionEn", "newAnswerEs", "newAnswerEn", "newQuestionChunks"].forEach((id) => {
-    document.getElementById(id).value = "";
-  });
+  ["newQuestionEs", "newQuestionEn", "newAnswerEs", "newAnswerEn", "newQuestionChunks", "newQuestionTags"].forEach((id) => {
+  document.getElementById(id).value = "";
+});
 
   saveData();
   render();
@@ -3790,6 +4210,7 @@ document.getElementById("addQuestionBtn").addEventListener("click", () => {
 
 document.getElementById("newIslandBtn").addEventListener("click", () => {
   const name = prompt("Name your new island:", "Travel");
+
   if (!name || !name.trim()) return;
 
   islands.push({
@@ -3802,9 +4223,12 @@ document.getElementById("newIslandBtn").addEventListener("click", () => {
         en: "Can you talk about this topic?",
         answerEs: "Todavía estoy construyendo esta isla, pero puedo empezar con una respuesta sencilla.",
         answerEn: "I am still building this island, but I can start with a simple answer.",
-        chunks: ["estoy construyendo...", "puedo empezar con...", "una respuesta sencilla"],
-        confidence: 1,
-        notes: ""
+     chunks: ["estoy construyendo...", "puedo empezar con...", "una respuesta sencilla"],
+tags: [name.trim().toLowerCase()],
+myAnswer: "",
+confidence: 1,
+confidenceByMode: createConfidenceByMode(1),
+notes: ""
       }
     ]
   });
