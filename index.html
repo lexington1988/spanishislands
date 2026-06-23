@@ -3221,12 +3221,7 @@ function renderRating() {
       `;
       button.title = item.title;
 
-      button.addEventListener("click", () => {
-        if (!ankiRevealed) {
-          showToast("Reveal the Spanish before rating.");
-          return;
-        }
-
+           button.addEventListener("click", () => {
         const currentCardIndex = activeQuestionIndex;
         const question = activeQuestion();
 
@@ -4020,7 +4015,16 @@ editCardModal.addEventListener("click", (event) => {
     closeEditCardModal();
   }
 });
-document.getElementById("listenBtn").addEventListener("click", () => speak(activeQuestion().answerEs));
+document.getElementById("listenBtn").addEventListener("click", () => {
+  const question = activeQuestion();
+
+  if (mode === "anki") {
+    speak(question.answerEs);
+    return;
+  }
+
+  speak(question.answerEs);
+});
   speakAnswerBtn.addEventListener("click", startAnswerDictation);
 clearAnswerBtn.addEventListener("click", clearMyAnswer);
 document.getElementById("shadowBtn").addEventListener("click", () => {
