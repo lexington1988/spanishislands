@@ -2556,11 +2556,61 @@ function isWeakQuestion(question) {
   const scores = getConfidenceScores(question);
 
   return [
+    scores.read,
     scores.recall,
     scores.conversation,
     scores.speakFirst,
     scores.anki
   ].some((score) => Number(score) <= 2);
+}
+  function getWeakReviewModeForQuestion(question) {
+  const scores = getConfidenceScores(question);
+
+  const weakModes = [
+    {
+      mode: "recall",
+      score: Number(scores.recall)
+    },
+    {
+      mode: "read",
+      score: Number(scores.read)
+    },
+    {
+      mode: "conversation",
+      score: Number(scores.conversation)
+    },
+    {
+      mode: "anki",
+      score: Number(scores.anki)
+    },
+    {
+      mode: "conversation",
+      score: Number(scores.speakFirst)
+    }
+  ].filter((item) => Number.isFinite(item.score) && item.score <= 2);
+
+  if (!weakModes.length) {
+    return "recall";
+  }
+
+  weakModes.sort((a, b) => a.score - b.score);
+
+  return weakModes[0].mode;
+}
+  function applyWeakCardMode() {
+  if (!weakIslandActive) return;
+
+  const question = activeQuestion();
+  const reviewMode = getWeakReviewModeForQuestion(question);
+
+  mode = reviewMode;
+  hidden = mode === "recall";
+  speakFirstRevealed = mode !== "conversation";
+  ankiRevealed = mode !== "anki";
+
+  document.querySelectorAll(".mode").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === mode);
+  });
 }
 function getWeakCards() {
   return islands.flatMap((island, islandIndex) =>
@@ -2798,22 +2848,21 @@ activeTagFilter = "";
     render();
   }
 
-  function selectWeakIsland() {
-    if (sessionActive) {
-      endPracticeSession(false);
-    }
-
-    weakIslandActive = true;
-activeQuestionIndex = 0;
-activeTagFilter = "";
-    ankiComplete = false;
-    hidden = mode === "recall";
-    speakFirstRevealed = mode !== "conversation";
-    ankiRevealed = mode !== "anki";
-    islandMenuOpen = false;
-
-    render();
+ function selectWeakIsland() {
+  if (sessionActive) {
+    endPracticeSession(false);
   }
+
+  weakIslandActive = true;
+  activeQuestionIndex = 0;
+  activeTagFilter = "";
+  ankiComplete = false;
+  islandMenuOpen = false;
+
+  applyWeakCardMode();
+
+  render();
+}
 
   function createWeakIslandCard() {
     const weakCards = getWeakCards();
@@ -3772,12 +3821,15 @@ if (!total) {
 activeQuestionIndex =
   (activeQuestionIndex + step + total) % total;
 
-  
-    hidden = mode === "recall";
-    speakFirstRevealed = mode !== "conversation";
-    ankiRevealed = mode !== "anki";
+if (weakIslandActive) {
+  applyWeakCardMode();
+} else {
+  hidden = mode === "recall";
+  speakFirstRevealed = mode !== "conversation";
+  ankiRevealed = mode !== "anki";
+}
 
-    render();
+render();
 
     if (shadowAutoPlay) {
       setTimeout(shadow, 180);
@@ -3798,10 +3850,16 @@ function randomQuestion() {
     next = Math.floor(Math.random() * island.questions.length);
   }
 
-  activeQuestionIndex = next;
-hidden = mode === "recall";
-speakFirstRevealed = mode !== "conversation";
+ activeQuestionIndex = next;
+
+if (weakIslandActive) {
+  applyWeakCardMode();
+} else {
+  hidden = mode === "recall";
+  speakFirstRevealed = mode !== "conversation";
   ankiRevealed = mode !== "anki";
+}
+
 animateCardChange(render);
 }
   function animateCardChange(callback) {
