@@ -1015,7 +1015,22 @@ textarea {
   background: rgba(184, 74, 61, 0.78);
   border-color: rgba(184, 74, 61, 0.3);
 }
+.card-icon-btn.difficult {
+  font-size: 13px;
+}
 
+.card-icon-btn.difficult.active {
+  color: #fff;
+  background: var(--coral);
+  border-color: rgba(232, 121, 92, 0.35);
+}
+
+.card-icon-btn.difficult:hover,
+.card-icon-btn.difficult:focus-visible {
+  color: #fff;
+  background: rgba(232, 121, 92, 0.82);
+  border-color: rgba(232, 121, 92, 0.35);
+}
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1407,8 +1422,9 @@ textarea {
   <button id="logoutBtn" type="button" hidden>Log Out</button>
   <button id="settingsBtn" type="button">Settings</button>
   <button id="exportBtn" type="button">Export Backup</button>
-  <button id="importBtn" type="button">Import JSON</button>
-  <button id="importCsvBtn" type="button">Import CSV</button>
+<button id="exportCsvBtn" type="button">Export CSV</button>
+<button id="importBtn" type="button">Import JSON</button>
+<button id="importCsvBtn" type="button">Import CSV</button>
 </div>
   </div>
 
@@ -1500,6 +1516,9 @@ textarea {
 </div>
 
 <div class="card-tools" aria-label="Card tools">
+  <button id="difficultCardBtn" class="card-icon-btn difficult" type="button" title="Mark as difficult" aria-label="Mark as difficult">
+    ★
+  </button>
   <button id="editCardBtn" class="card-icon-btn edit" type="button" title="Edit card" aria-label="Edit card">
     ✎
   </button>
@@ -1838,6 +1857,8 @@ let islandPlaybackTimer = null;
 let practicePlaybackStartedAt = 0;
 let practicePlaybackTimer = null;
 let practicePlaybackToken = 0;
+let shadowHoldTimer = null;
+let shadowSuppressNextClick = false;
 const islandList = document.getElementById("islandList");
   const tagFilterSelect = document.getElementById("tagFilterSelect");
 const mainCard = document.getElementById("mainCard");
@@ -1902,8 +1923,9 @@ const editQuestionEn = document.getElementById("editQuestionEn");
 const editAnswerEs = document.getElementById("editAnswerEs");
 const editAnswerEn = document.getElementById("editAnswerEn");
 const editChunks = document.getElementById("editChunks");
-  const editTags = document.getElementById("editTags");
+const editTags = document.getElementById("editTags");
 const duplicateCardBtn = document.getElementById("duplicateCardBtn");
+const difficultCardBtn = document.getElementById("difficultCardBtn");
   function loadSettings() {
  const defaults = {
   voiceRate: 0.86,
@@ -2380,6 +2402,54 @@ async function loadCloudData() {
     .map((tag) => tag.trim().toLowerCase())
     .filter(Boolean);
 }
+  function withRequiredTag(tags, requiredTag) {
+  const cleanTags = Array.isArray(tags)
+    ? tags.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  const cleanRequiredTag = String(requiredTag).trim().toLowerCase();
+
+  if (!cleanRequiredTag) {
+    return cleanTags;
+  }
+
+  return cleanTags.includes(cleanRequiredTag)
+    ? cleanTags
+    : [...cleanTags, cleanRequiredTag];
+}
+  function updateNeedsReviewTag(question, score) {
+  const cleanScore = Number(score);
+
+  if (!question || !Number.isFinite(cleanScore)) {
+    return;
+  }
+
+  const tags = getQuestionTags(question);
+
+  if (cleanScore <= 2) {
+    question.tags = withRequiredTag(tags, "needs-review");
+    return;
+  }
+
+  if (cleanScore >= 4) {
+    question.tags = tags.filter((tag) => tag !== "needs-review");
+  }
+}
+  function withRequiredTag(tags, requiredTag) {
+  const cleanTags = Array.isArray(tags)
+    ? tags.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  const cleanRequiredTag = String(requiredTag).trim().toLowerCase();
+
+  if (!cleanRequiredTag) {
+    return cleanTags;
+  }
+
+  return cleanTags.includes(cleanRequiredTag)
+    ? cleanTags
+    : [...cleanTags, cleanRequiredTag];
+}
   function getQuestionTags(question) {
   return Array.isArray(question.tags)
     ? question.tags.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean)
@@ -2391,7 +2461,50 @@ function questionHasTag(question, tag) {
 
   return getQuestionTags(question).includes(tag);
 }
+function isDifficultCard(question) {
+  return getQuestionTags(question).includes("difficult");
+}
 
+function updateDifficultButton() {
+  if (!difficultCardBtn) return;
+
+  const difficult = isDifficultCard(activeQuestion());
+
+  difficultCardBtn.classList.toggle("active", difficult);
+
+  difficultCardBtn.title = difficult
+    ? "Remove difficult tag"
+    : "Mark as difficult";
+
+  difficultCardBtn.setAttribute(
+    "aria-label",
+    difficult ? "Remove difficult tag" : "Mark as difficult"
+  );
+}
+
+function toggleDifficultCard() {
+  const question = activeQuestion();
+  const tags = getQuestionTags(question);
+  const difficult = tags.includes("difficult");
+
+  question.tags = difficult
+    ? tags.filter((tag) => tag !== "difficult")
+    : [...tags, "difficult"];
+
+  saveData();
+
+  if (activeTagFilter === "difficult" && difficult) {
+    activeQuestionIndex = 0;
+  }
+
+  render();
+
+  showToast(
+    difficult
+      ? "Removed difficult tag."
+      : "Marked as difficult."
+  );
+}
 function getAllTags() {
   const tags = new Set();
 
@@ -2742,6 +2855,8 @@ function setModeConfidence(question, score, modeKey = getConfidenceModeKey()) {
   question.confidenceByMode = scores;
 
   recordCardHistory(question, cleanScore, modeKey);
+
+  updateNeedsReviewTag(question, cleanScore);
 
   // Keep this old value for backwards compatibility with older app code/imports.
   question.confidence = cleanScore;
@@ -3424,6 +3539,7 @@ document.getElementById("hideBtn").textContent =
         ? "Show Spanish"
         : "Hide Spanish";
 
+updateDifficultButton();
 renderCardHistory();
 }
 
@@ -3536,43 +3652,52 @@ renderCardHistory();
     button.className = score === currentScore ? "active" : "";
 
     button.addEventListener("click", () => {
-      const question = activeQuestion();
+  const question = activeQuestion();
 
-      setModeConfidence(question, score, modeKey);
-saveData();
-renderCardHistory();
+  setModeConfidence(question, score, modeKey);
+  saveData();
+  renderCardHistory();
+  renderTagFilter();
 
-      if (weakIslandActive) {
-        const stillWeak = isWeakQuestion(question);
-        const weakCards = getWeakCards();
+  if (weakIslandActive) {
+    const stillWeak = isWeakQuestion(question);
+    const weakCards = getWeakCards();
 
-        if (!weakCards.length) {
-          weakIslandActive = false;
-          activeIslandIndex = 0;
-          activeQuestionIndex = 0;
-          showToast("No weak cards left. Great work!");
-          render();
-          return;
-        }
+    if (!weakCards.length) {
+      weakIslandActive = false;
+      activeIslandIndex = 0;
+      activeQuestionIndex = 0;
+      showToast("No weak cards left. Great work!");
+      render();
+      return;
+    }
 
-        if (!stillWeak) {
-          if (activeQuestionIndex >= weakCards.length) {
-            activeQuestionIndex = weakCards.length - 1;
-          }
-
-          render();
-          return;
-        }
-
-        if (activeQuestionIndex >= weakCards.length) {
-          activeQuestionIndex = weakCards.length - 1;
-          render();
-          return;
-        }
+    if (!stillWeak) {
+      if (activeQuestionIndex >= weakCards.length) {
+        activeQuestionIndex = weakCards.length - 1;
       }
 
-      nextQuestion(1);
-    });
+      render();
+      return;
+    }
+
+    if (activeQuestionIndex >= weakCards.length) {
+      activeQuestionIndex = weakCards.length - 1;
+      render();
+      return;
+    }
+  }
+
+  if (score <= 2) {
+    showToast("Marked as needs review.");
+  } else if (score >= 4) {
+    showToast("Needs review removed.");
+  } else {
+    showToast(`Confidence set to ${score}.`);
+  }
+
+  nextQuestion(1);
+});
 
     rating.appendChild(button);
   }
@@ -3583,6 +3708,72 @@ function sentenceList(text) {
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function wordCount(text) {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function smartChunkList(text) {
+  const sentences = sentenceList(text);
+  const chunks = [];
+
+  sentences.forEach((sentence) => {
+    const cleanSentence = sentence.trim();
+
+    if (!cleanSentence) return;
+
+    if (wordCount(cleanSentence) <= 8) {
+      chunks.push(cleanSentence);
+      return;
+    }
+
+    const softParts = cleanSentence
+      .split(/(?<=[,;:])\s+|\s+(?=(?:y|pero|porque|cuando|si|aunque|que|para|con|sin|después|antes|también)\b)/i)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    let currentChunk = "";
+
+    softParts.forEach((part) => {
+      const combined = currentChunk
+        ? `${currentChunk} ${part}`
+        : part;
+
+      if (wordCount(combined) <= 9) {
+        currentChunk = combined;
+        return;
+      }
+
+      if (currentChunk) {
+        chunks.push(currentChunk);
+      }
+
+      if (wordCount(part) <= 10) {
+        currentChunk = part;
+        return;
+      }
+
+      const words = part.split(/\s+/);
+      currentChunk = "";
+
+      while (words.length) {
+        const smallChunk = words.splice(0, 8).join(" ");
+        chunks.push(smallChunk);
+      }
+    });
+
+    if (currentChunk) {
+      chunks.push(currentChunk);
+    }
+  });
+
+  return chunks.length
+    ? chunks
+    : sentenceList(text);
 }
   function beginPracticePlayback() {
   stopPracticePlayback(true);
@@ -3802,7 +3993,7 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
-function shadow() {
+function shadow(options = {}) {
   if (!("speechSynthesis" in window)) {
     showToast("This browser does not support speech.");
     return;
@@ -3812,25 +4003,39 @@ function shadow() {
     stopIslandPlayback(true);
   }
 
-  const sentences =
-    sentenceList(activeQuestion().answerEs);
+  const useSmartChunks = Boolean(options.smartChunks);
+  const answer = activeQuestion().answerEs;
+
+  const segments = useSmartChunks
+    ? smartChunkList(answer)
+    : sentenceList(answer);
+
+  if (!segments.length) {
+    showToast("There is no Spanish answer to shadow.");
+    return;
+  }
 
   const token = beginPracticePlayback();
-  let sentenceIndex = 0;
+  let segmentIndex = 0;
 
-  function nextSentence() {
+  function nextSegment() {
     if (token !== practicePlaybackToken) {
       return;
     }
 
-    if (sentenceIndex >= sentences.length) {
+    if (segmentIndex >= segments.length) {
       finishPracticePlayback(token);
+
+      if (useSmartChunks) {
+        showToast("Chunk Shadow complete.");
+      }
+
       return;
     }
 
     const utterance =
       new SpeechSynthesisUtterance(
-        sentences[sentenceIndex]
+        segments[segmentIndex]
       );
 
     utterance.lang = "es-ES";
@@ -3850,12 +4055,12 @@ function shadow() {
         return;
       }
 
-      sentenceIndex += 1;
+      segmentIndex += 1;
 
       practicePlaybackTimer = setTimeout(
-  nextSentence,
-  appSettings.shadowPauseMs
-);
+        nextSegment,
+        appSettings.shadowPauseMs
+      );
     };
 
     utterance.onerror = () => {
@@ -3863,10 +4068,10 @@ function shadow() {
         return;
       }
 
-      sentenceIndex += 1;
+      segmentIndex += 1;
 
       practicePlaybackTimer = setTimeout(
-        nextSentence,
+        nextSegment,
         300
       );
     };
@@ -3874,10 +4079,12 @@ function shadow() {
     speechSynthesis.speak(utterance);
   }
 
-  nextSentence();
+  nextSegment();
 
   showToast(
-    "Shadow mode: repeat each sentence in the pause."
+    useSmartChunks
+      ? "Chunk Shadow: repeat each short part in the pause."
+      : "Shadow mode: repeat each sentence in the pause."
   );
 }
 
@@ -4298,7 +4505,9 @@ function duplicateCurrentCard() {
   const copiedCard = structuredClone(question);
 
   copiedCard.confidence = 1;
-  copiedCard.notes = question.notes || "";
+copiedCard.confidenceByMode = createConfidenceByMode(1);
+copiedCard.tags = withRequiredTag(copiedCard.tags || [], "new");
+copiedCard.notes = question.notes || "";
 
   island.questions.splice(activeQuestionIndex + 1, 0, copiedCard);
 
@@ -4412,7 +4621,8 @@ settingsModal.addEventListener("click", (event) => {
     closeSettingsModal();
   }
 });
-  document.getElementById("editCardBtn").addEventListener("click", openEditCardModal);
+  difficultCardBtn.addEventListener("click", toggleDifficultCard);
+document.getElementById("editCardBtn").addEventListener("click", openEditCardModal);
 document.getElementById("deleteCardBtn").addEventListener("click", deleteCurrentCard);
 document.getElementById("cancelEditCardBtn").addEventListener("click", closeEditCardModal);
 document.getElementById("saveEditCardBtn").addEventListener("click", saveEditedCard);
@@ -4435,11 +4645,53 @@ document.getElementById("listenBtn").addEventListener("click", () => {
 });
   speakAnswerBtn.addEventListener("click", startAnswerDictation);
 clearAnswerBtn.addEventListener("click", clearMyAnswer);
-document.getElementById("shadowBtn").addEventListener("click", () => {
-  shadowAutoPlay = !shadowAutoPlay;
+const shadowButton = document.getElementById("shadowBtn");
 
-  const shadowButton =
-    document.getElementById("shadowBtn");
+shadowButton.addEventListener("pointerdown", () => {
+  shadowHoldTimer = setTimeout(() => {
+    shadowSuppressNextClick = true;
+
+    if (shadowAutoPlay) {
+      shadowAutoPlay = false;
+
+      shadowButton.classList.remove("shadow-active");
+      shadowButton.textContent = "Shadow";
+
+      stopPracticePlayback(true);
+    }
+
+    shadow({ smartChunks: true });
+  }, 550);
+});
+
+shadowButton.addEventListener("pointerup", () => {
+  if (shadowHoldTimer) {
+    clearTimeout(shadowHoldTimer);
+    shadowHoldTimer = null;
+  }
+});
+
+shadowButton.addEventListener("pointerleave", () => {
+  if (shadowHoldTimer) {
+    clearTimeout(shadowHoldTimer);
+    shadowHoldTimer = null;
+  }
+});
+
+shadowButton.addEventListener("pointercancel", () => {
+  if (shadowHoldTimer) {
+    clearTimeout(shadowHoldTimer);
+    shadowHoldTimer = null;
+  }
+});
+
+shadowButton.addEventListener("click", () => {
+  if (shadowSuppressNextClick) {
+    shadowSuppressNextClick = false;
+    return;
+  }
+
+  shadowAutoPlay = !shadowAutoPlay;
 
   shadowButton.classList.toggle(
     "shadow-active",
@@ -4455,9 +4707,9 @@ document.getElementById("shadowBtn").addEventListener("click", () => {
       "Shadow mode on: Next and Previous will play automatically."
     );
   } else {
-  stopPracticePlayback(true);
-  showToast("Shadow mode off.");
-}
+    stopPracticePlayback(true);
+    showToast("Shadow mode off.");
+  }
 });
 
 document.getElementById("hideBtn").addEventListener("click", () => {
@@ -4602,7 +4854,7 @@ const tagValue = document.getElementById("newQuestionTags").value.trim();
     answerEs: answerEsValue,
     answerEn: answerEnValue || "",
   chunks: chunkValue ? chunkValue.split(",").map((item) => item.trim()).filter(Boolean) : [],
-tags: parseTags(tagValue),
+tags: withRequiredTag(parseTags(tagValue), "new"),
 myAnswer: "",
 confidence: 1,
 confidenceByMode: createConfidenceByMode(1),
@@ -4636,7 +4888,7 @@ document.getElementById("newIslandBtn").addEventListener("click", () => {
         answerEs: "Todavía estoy construyendo esta isla, pero puedo empezar con una respuesta sencilla.",
         answerEn: "I am still building this island, but I can start with a simple answer.",
      chunks: ["estoy construyendo...", "puedo empezar con...", "una respuesta sencilla"],
-tags: [name.trim().toLowerCase()],
+tags: withRequiredTag([name.trim().toLowerCase()], "new"),
 myAnswer: "",
 confidence: 1,
 confidenceByMode: createConfidenceByMode(1),
@@ -4661,7 +4913,81 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   link.click();
   URL.revokeObjectURL(url);
 });
+function csvEscape(value) {
+  const text = value === undefined || value === null
+    ? ""
+    : String(value);
 
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+}
+
+function islandsToCsv() {
+  const headers = [
+    "Island",
+    "Level",
+    "Spanish Question",
+    "English Question",
+    "Spanish Answer",
+    "English Answer",
+    "Chunks",
+    "Tags",
+    "Confidence",
+    "Notes"
+  ];
+
+  const rows = [headers];
+
+  islands.forEach((island) => {
+    island.questions.forEach((question) => {
+      rows.push([
+        island.name || "",
+        island.level || "",
+        question.es || "",
+        question.en || "",
+        question.answerEs || "",
+        question.answerEn || "",
+        Array.isArray(question.chunks)
+          ? question.chunks.join(" | ")
+          : "",
+        Array.isArray(question.tags)
+          ? question.tags.join(" | ")
+          : "",
+        question.confidence || "",
+        question.notes || ""
+      ]);
+    });
+  });
+
+  return rows
+    .map((row) => row.map(csvEscape).join(","))
+    .join("\n");
+}
+
+document.getElementById("exportCsvBtn").addEventListener("click", () => {
+  const csv = islandsToCsv();
+  const blob = new Blob([`\uFEFF${csv}`], {
+    type: "text/csv;charset=utf-8"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "spanish-islands.csv";
+  link.click();
+
+  URL.revokeObjectURL(url);
+
+  if (appMenu) {
+    appMenu.hidden = true;
+  }
+
+  showToast("CSV exported.");
+});
 document.getElementById("importBtn").addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -4852,14 +5178,16 @@ function importExcelStyleIsland(rows, islandName) {
       if (!questionEs || !answerEs) return;
 
       cards.push({
-        es: questionEs,
-        en: questionEn,
-        answerEs,
-        answerEn,
-        chunks: [answerEs],
-        confidence: 1,
-        notes: ""
-      });
+  es: questionEs,
+  en: questionEn,
+  answerEs,
+  answerEn,
+  chunks: [answerEs],
+  tags: ["new"],
+  confidence: 1,
+  confidenceByMode: createConfidenceByMode(1),
+  notes: ""
+});
     });
   } else {
     let currentQuestionEn = "";
@@ -4886,15 +5214,17 @@ function importExcelStyleIsland(rows, islandName) {
       }
 
       if (currentQuestionEs && spanish) {
-        cards.push({
-          es: currentQuestionEs,
-          en: currentQuestionEn,
-          answerEs: spanish,
-          answerEn: english,
-          chunks: [spanish],
-          confidence: 1,
-          notes: ""
-        });
+       cards.push({
+  es: currentQuestionEs,
+  en: currentQuestionEn,
+  answerEs: spanish,
+  answerEn: english,
+  chunks: [spanish],
+  tags: ["new"],
+  confidence: 1,
+  confidenceByMode: createConfidenceByMode(1),
+  notes: ""
+});
       }
     });
   }
