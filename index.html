@@ -774,7 +774,60 @@ textarea {
   background: var(--sea);
   border-color: transparent;
 }
+.card-history-box {
+  margin-top: 10px;
+  border-top: 1px solid rgba(23, 39, 43, 0.09);
+  padding-top: 8px;
+}
 
+.card-history-box summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  list-style: none;
+}
+
+.card-history-box summary::-webkit-details-marker {
+  display: none;
+}
+
+.card-history-box summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 160ms ease;
+}
+
+.card-history-box[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.card-history-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.card-history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.card-history-score {
+  color: var(--sea-dark);
+  font-weight: 900;
+}
+
+.card-history-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
 .grow-box summary {
   cursor: pointer;
   color: var(--sea-dark);
@@ -1437,7 +1490,13 @@ textarea {
     <span class="section-label">Confidence</span>
     <span class="confidence-hint">How well could you say it?</span>
   </div>
+
   <div id="rating" class="rating"></div>
+
+  <details id="cardHistoryBox" class="card-history-box">
+    <summary id="cardHistorySummary">History</summary>
+    <div id="cardHistoryList" class="card-history-list"></div>
+  </details>
 </div>
 
 <div class="card-tools" aria-label="Card tools">
@@ -1503,8 +1562,8 @@ textarea {
 </button>
 
 <div class="session-actions">
-  <button id="startSessionBtn" class="btn primary full" type="button">
-  Start session
+ <button id="startSessionBtn" class="btn primary full" type="button">
+  Start Today's Practice
 </button>
 
   <button id="endSessionBtn" class="btn soft full" type="button" hidden>
@@ -1769,6 +1828,7 @@ let ankiReviewStats = {
 let sessionActive = false;
 let islandMenuOpen = false;
 let sessionCards = [];
+let sessionCardModes = {};
 let sessionPosition = 0;
 let sessionStartedAt = 0;
 let voices = [];
@@ -1795,6 +1855,9 @@ const clearAnswerBtn = document.getElementById("clearAnswerBtn");
 const myAnswerText = document.getElementById("myAnswerText");
 const speechSupportMsg = document.getElementById("speechSupportMsg");
 const rating = document.getElementById("rating");
+const cardHistoryBox = document.getElementById("cardHistoryBox");
+const cardHistorySummary = document.getElementById("cardHistorySummary");
+const cardHistoryList = document.getElementById("cardHistoryList");
 const voiceSelect = document.getElementById("voiceSelect");
 const toast = document.getElementById("toast");
 const dailyInput = document.getElementById("dailyInput");
@@ -2536,7 +2599,137 @@ function getModeConfidence(question, modeKey = getConfidenceModeKey()) {
     ? score
     : 3;
 }
+function getCardHistory(question) {
+  if (!Array.isArray(question.history)) {
+    question.history = [];
+  }
 
+  return question.history;
+}
+
+function getModeLabel(modeKey) {
+  const labels = {
+    read: "Read",
+    recall: "Recall",
+    conversation: "Conversation",
+    speakFirst: "Speak",
+    anki: "Anki"
+  };
+
+  return labels[modeKey] || "Practice";
+}
+
+function formatShortDate(isoDate) {
+  if (!isoDate) return "";
+
+  const date = new Date(isoDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short"
+  });
+}
+
+function recordCardHistory(question, score, modeKey) {
+  const history = getCardHistory(question);
+
+  history.push({
+    date: new Date().toISOString(),
+    mode: modeKey,
+    score
+  });
+
+  question.history = history.slice(-20);
+}
+
+function getCardHistoryTrend(history) {
+  if (!history.length) {
+    return "No history yet";
+  }
+
+  if (history.length < 3) {
+    return "Getting started";
+  }
+
+  const recent = history.slice(-3);
+  const first = Number(recent[0].score);
+  const last = Number(recent[recent.length - 1].score);
+
+  if (last > first) {
+    return "Improving";
+  }
+
+  if (last < first) {
+    return "Needs work";
+  }
+
+  return "Steady";
+}
+function isProductionMode(modeKey) {
+  return ["recall", "conversation"].includes(modeKey);
+}
+
+function getProductionHistory(question) {
+  return getCardHistory(question).filter((item) =>
+    isProductionMode(item.mode)
+  );
+}
+
+function getConsecutiveMasteryScore(question) {
+  const productionHistory = getProductionHistory(question);
+
+  let count = 0;
+
+  for (let i = productionHistory.length - 1; i >= 0; i -= 1) {
+    if (Number(productionHistory[i].score) === 5) {
+      count += 1;
+    } else {
+      break;
+    }
+  }
+
+  return count;
+}
+
+function isMasteredQuestion(question) {
+  return getConsecutiveMasteryScore(question) >= 3;
+}
+function renderCardHistory() {
+  if (!cardHistoryBox || !cardHistorySummary || !cardHistoryList) return;
+
+  const question = activeQuestion();
+  const history = getCardHistory(question);
+  const recentHistory = history.slice(-5).reverse();
+  const trend = getCardHistoryTrend(history);
+  const last = history[history.length - 1];
+  const mastered = isMasteredQuestion(question);
+
+  if (!history.length) {
+    cardHistorySummary.textContent = "History · No scores yet";
+    cardHistoryList.innerHTML = `
+      <div class="card-history-empty">
+        Your recent scores will appear here.
+      </div>
+    `;
+    return;
+  }
+
+  cardHistorySummary.textContent =
+    `History · ${trend} · Last: ${getModeLabel(last.mode)} ${last.score}${mastered ? " · ✓ Mastered" : ""}`;
+
+  cardHistoryList.innerHTML = recentHistory
+    .map((item) => `
+      <div class="card-history-row">
+        <span>${formatShortDate(item.date)} · ${getModeLabel(item.mode)}</span>
+        <span class="card-history-score">${item.score}/5</span>
+      </div>
+    `)
+    .join("");
+}
 function setModeConfidence(question, score, modeKey = getConfidenceModeKey()) {
   const cleanScore = Math.min(
     5,
@@ -2548,11 +2741,17 @@ function setModeConfidence(question, score, modeKey = getConfidenceModeKey()) {
   scores[modeKey] = cleanScore;
   question.confidenceByMode = scores;
 
+  recordCardHistory(question, cleanScore, modeKey);
+
   // Keep this old value for backwards compatibility with older app code/imports.
   question.confidence = cleanScore;
 }
 
 function isWeakQuestion(question) {
+  if (isMasteredQuestion(question)) {
+    return false;
+  }
+
   const scores = getConfidenceScores(question);
 
   return [
@@ -3224,6 +3423,8 @@ document.getElementById("hideBtn").textContent =
       : hidden
         ? "Show Spanish"
         : "Hide Spanish";
+
+renderCardHistory();
 }
 
 function renderRating() {
@@ -3275,6 +3476,7 @@ function renderRating() {
         const question = activeQuestion();
 
         setModeConfidence(question, item.confidenceScore, "anki");
+renderCardHistory();
 
         const srs = scheduleAnkiCard(question, item.grade);
 
@@ -3337,7 +3539,8 @@ function renderRating() {
       const question = activeQuestion();
 
       setModeConfidence(question, score, modeKey);
-      saveData();
+saveData();
+renderCardHistory();
 
       if (weakIslandActive) {
         const stillWeak = isWeakQuestion(question);
@@ -3697,6 +3900,142 @@ function loadVoices() {
   const preferred = usableVoices.find((voice) => voice.lang === "es-ES") || usableVoices[0];
   if (preferred) voiceSelect.value = preferred.name;
 }
+function shuffleItems(items) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
+function addUniqueSessionCard(list, item) {
+  if (list.some((existing) => existing.index === item.index)) {
+    return;
+  }
+
+  list.push(item);
+}
+
+function getWeakestModeForQuestion(question) {
+  const scores = getConfidenceScores(question);
+
+  const weakModes = [
+    {
+      mode: "recall",
+      score: Number(scores.recall)
+    },
+    {
+      mode: "read",
+      score: Number(scores.read)
+    },
+    {
+      mode: "conversation",
+      score: Number(scores.conversation)
+    },
+    {
+      mode: "anki",
+      score: Number(scores.anki)
+    }
+  ].filter((item) => Number.isFinite(item.score) && item.score <= 2);
+
+  if (!weakModes.length) {
+    return "recall";
+  }
+
+  weakModes.sort((a, b) => a.score - b.score);
+
+  return weakModes[0].mode;
+}
+
+function getSmartPracticeModeForQuestion(question) {
+  if (isCardDue(question)) {
+    return "anki";
+  }
+
+  if (isWeakQuestion(question)) {
+    return getWeakestModeForQuestion(question);
+  }
+
+  const scores = getConfidenceScores(question);
+
+  if (Number(scores.recall) <= 3) {
+    return "recall";
+  }
+
+  if (Number(scores.read) <= 3) {
+    return "read";
+  }
+
+  return "conversation";
+}
+
+function applySessionCardMode(cardMode) {
+  mode = cardMode || "read";
+
+  hidden = mode === "recall";
+  speakFirstRevealed = mode !== "conversation";
+  ankiRevealed = mode !== "anki";
+  ankiComplete = false;
+
+  document.querySelectorAll(".mode").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === mode);
+  });
+}
+
+function buildTodayPracticeCards(island, sessionSize) {
+  const selected = [];
+
+  const allCards = island.questions.map((question, index) => ({
+    question,
+    index,
+    mode: getSmartPracticeModeForQuestion(question)
+  }));
+
+  const unmasteredCards = allCards.filter(
+    (item) => !isMasteredQuestion(item.question)
+  );
+
+  const masteredCards = allCards.filter(
+    (item) => isMasteredQuestion(item.question)
+  );
+
+  const dueAnkiCards = shuffleItems(
+    unmasteredCards.filter((item) => isCardDue(item.question))
+  );
+
+  const weakCards = shuffleItems(
+    unmasteredCards.filter((item) => isWeakQuestion(item.question))
+  );
+
+  const lowConfidenceCards = shuffleItems(
+    unmasteredCards.filter((item) => {
+      const scores = getConfidenceScores(item.question);
+
+      return (
+        Number(scores.recall) <= 3 ||
+        Number(scores.read) <= 3 ||
+        Number(scores.conversation) <= 3
+      );
+    })
+  );
+
+  const normalFillerCards = shuffleItems(unmasteredCards);
+
+  const masteredMaintenanceCards = shuffleItems(masteredCards);
+
+  [
+    dueAnkiCards,
+    weakCards,
+    lowConfidenceCards,
+    normalFillerCards,
+    masteredMaintenanceCards
+  ].forEach((group) => {
+    group.forEach((item) => {
+      if (selected.length < sessionSize) {
+        addUniqueSessionCard(selected, item);
+      }
+    });
+  });
+
+  return selected;
+}
+
 function startPracticeSession() {
   const island = activeIsland();
 
@@ -3706,15 +4045,27 @@ function startPracticeSession() {
   }
 
   const requestedSessionSize = Number(appSettings.sessionSize) || 10;
-const sessionSize = Math.min(
-  requestedSessionSize,
-  island.questions.length
-);
 
-  sessionCards = island.questions
-    .map((question, index) => index)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, sessionSize);
+  const sessionSize = Math.min(
+    requestedSessionSize,
+    island.questions.length
+  );
+
+  const todayPracticeCards =
+    buildTodayPracticeCards(island, sessionSize);
+
+  if (!todayPracticeCards.length) {
+    showToast("No cards available for today's practice.");
+    return;
+  }
+
+  sessionCards = todayPracticeCards.map((item) => item.index);
+
+  sessionCardModes = {};
+
+  todayPracticeCards.forEach((item) => {
+    sessionCardModes[item.index] = item.mode;
+  });
 
   sessionActive = true;
   sessionPosition = 0;
@@ -3722,15 +4073,14 @@ const sessionSize = Math.min(
 
   activeQuestionIndex = sessionCards[sessionPosition];
 
-  hidden = mode === "recall";
-speakFirstRevealed = mode !== "conversation";
-ankiRevealed = mode !== "anki";
+  applySessionCardMode(sessionCardModes[activeQuestionIndex]);
+
   startSessionBtn.hidden = true;
   endSessionBtn.hidden = false;
 
   render();
 
-  showToast(`Started ${sessionSize}-card session.`);
+  showToast(`Started today's ${sessionCards.length}-card practice.`);
 }
 
 function endPracticeSession(showSummary = true) {
@@ -3743,9 +4093,10 @@ function endPracticeSession(showSummary = true) {
     : 0;
 
   sessionActive = false;
-  sessionCards = [];
-  sessionPosition = 0;
-  sessionStartedAt = 0;
+sessionCards = [];
+sessionCardModes = {};
+sessionPosition = 0;
+sessionStartedAt = 0;
 
   startSessionBtn.hidden = false;
   endSessionBtn.hidden = true;
@@ -3767,9 +4118,10 @@ function finishPracticeSession() {
   const completedCards = sessionCards.length;
 
   sessionActive = false;
-  sessionCards = [];
-  sessionPosition = 0;
-  sessionStartedAt = 0;
+sessionCards = [];
+sessionCardModes = {};
+sessionPosition = 0;
+sessionStartedAt = 0;
 
   startSessionBtn.hidden = false;
   endSessionBtn.hidden = true;
@@ -3796,11 +4148,9 @@ function nextQuestion(step = 1) {
 
       activeQuestionIndex = sessionCards[sessionPosition];
 
-      hidden = mode === "recall";
-      speakFirstRevealed = mode !== "conversation";
-      ankiRevealed = mode !== "anki";
+applySessionCardMode(sessionCardModes[activeQuestionIndex]);
 
-      render();
+render();
 
       if (shadowAutoPlay) {
         setTimeout(shadow, 180);
