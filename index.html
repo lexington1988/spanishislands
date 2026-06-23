@@ -1613,7 +1613,14 @@ textarea {
       <details class="tool-block grow-box">
         <summary>Grow this island</summary>
         <input id="newQuestionEs" placeholder="Spanish question">
-        <input id="newQuestionEn" placeholder="English question">
+
+<input
+  id="newQuestionEn"
+  list="existingEnglishQuestionSuggestions"
+  placeholder="English question"
+>
+
+<datalist id="existingEnglishQuestionSuggestions"></datalist>
         <textarea id="newAnswerEs" placeholder="Spanish model answer"></textarea>
         <input id="newAnswerEn" placeholder="English meaning">
         <input id="newQuestionChunks" placeholder="Chunks separated by commas">
@@ -3116,6 +3123,57 @@ const dueIndexes = allDueIndexes
     : `${sessionCards.length} Anki cards due.`
 );
 }
+  function updateGrowEnglishQuestionSuggestions() {
+  const suggestions = document.getElementById("existingEnglishQuestionSuggestions");
+
+  if (!suggestions) return;
+
+  suggestions.innerHTML = "";
+
+  const seenQuestions = new Set();
+
+  activeIsland().questions.forEach((question) => {
+    const englishQuestion = (question.en || "").trim();
+    const spanishQuestion = (question.es || "").trim();
+
+    if (!englishQuestion) return;
+
+    const key = englishQuestion.toLowerCase();
+
+    if (seenQuestions.has(key)) return;
+
+    seenQuestions.add(key);
+
+    const option = document.createElement("option");
+
+    option.value = englishQuestion;
+
+    if (spanishQuestion) {
+      option.label = spanishQuestion;
+    }
+
+    suggestions.appendChild(option);
+  });
+}
+
+function fillGrowSpanishQuestionFromEnglish() {
+  const englishInput = document.getElementById("newQuestionEn");
+  const spanishInput = document.getElementById("newQuestionEs");
+
+  if (!englishInput || !spanishInput) return;
+
+  const selectedEnglish = englishInput.value.trim();
+
+  if (!selectedEnglish) return;
+
+  const match = activeIsland().questions.find((question) =>
+    (question.en || "").trim().toLowerCase() === selectedEnglish.toLowerCase()
+  );
+
+  if (!match) return;
+
+  spanishInput.value = match.es || "";
+}
 function activeQuestion() {
   const island = activeIsland();
 
@@ -3139,6 +3197,7 @@ function render() {
   renderIslands();
   renderQuestion();
   renderRating();
+  updateGrowEnglishQuestionSuggestions();
 }
 
 function renderIslands() {
@@ -4789,7 +4848,13 @@ document.querySelectorAll(".mode").forEach((button) => {
     scrollToMainCard();
   });
 });
+document.getElementById("newQuestionEn").addEventListener("input", () => {
+  fillGrowSpanishQuestionFromEnglish();
+});
 
+document.getElementById("newQuestionEn").addEventListener("change", () => {
+  fillGrowSpanishQuestionFromEnglish();
+});
 document.getElementById("addChunkBtn").addEventListener("click", () => {
   const input = document.getElementById("newChunk");
   const value = input.value.trim();
