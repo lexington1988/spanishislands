@@ -1084,6 +1084,35 @@ textarea {
 .modal-body textarea {
   min-height: 96px;
 }
+
+.audio-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.audio-toggle-row input {
+  width: auto;
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.audio-toggle-row label {
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.audio-toggle-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
@@ -1729,6 +1758,14 @@ textarea {
 <label for="editTags">Tags</label>
 <input id="editTags" placeholder="Tags separated by commas, e.g. work, opinion, problem">
 <p class="hint">Use tags to organise cards, for example: work, safety, problem, opinion</p>
+
+<div class="audio-toggle-row">
+  <input id="editExcludeFromAudio" type="checkbox">
+  <div>
+    <label for="editExcludeFromAudio">Exclude this card from island audio</label>
+    <small>The card will still appear in practice, but it will be skipped when you play the full island audio.</small>
+  </div>
+</div>
     </div>
 
     <div class="modal-actions">
@@ -1931,6 +1968,7 @@ const editAnswerEs = document.getElementById("editAnswerEs");
 const editAnswerEn = document.getElementById("editAnswerEn");
 const editChunks = document.getElementById("editChunks");
 const editTags = document.getElementById("editTags");
+const editExcludeFromAudio = document.getElementById("editExcludeFromAudio");
 const duplicateCardBtn = document.getElementById("duplicateCardBtn");
 const difficultCardBtn = document.getElementById("difficultCardBtn");
   function loadSettings() {
@@ -2255,41 +2293,66 @@ function estimatedSpeechMs(text) {
   return Math.max(850, (words / 130) * 60000);
 }
 
+function isMasteredForAudio(question) {
+  const history = Array.isArray(question.history)
+    ? question.history
+    : [];
+
+  const productionHistory = history.filter((item) =>
+    ["recall", "conversation"].includes(item.mode)
+  );
+
+  let count = 0;
+
+  for (let i = productionHistory.length - 1; i >= 0; i -= 1) {
+    if (Number(productionHistory[i].score) === 5) {
+      count += 1;
+    } else {
+      break;
+    }
+  }
+
+  return count >= 3;
+}
+
 function islandAudioSegments(island) {
   const segments = [];
 
-  island.questions.forEach((question) => {
-    const used = new Set();
+  island.questions
+    .filter((question) =>
+      !isMasteredForAudio(question) &&
+      !question.excludeFromAudio
+    )
+    .forEach((question) => {
+      const used = new Set();
 
-    function addSegment(text, type) {
-      const clean = (text || "").trim();
-      const key = clean.toLocaleLowerCase("es");
+      function addSegment(text, type) {
+        const clean = (text || "").trim();
+        const key = clean.toLocaleLowerCase("es");
 
-      if (!clean || used.has(key)) return;
+        if (!clean || used.has(key)) return;
 
-      used.add(key);
+        used.add(key);
 
-      const speechMs = estimatedSpeechMs(clean);
+        const speechMs = estimatedSpeechMs(clean);
 
-      const pauseMs =
-  type === "question"
-    ? 900
-    : type === "chunk"
-      ? Math.min(3000, Math.max(1400, speechMs * 0.65))
-      : Math.min(4500, Math.max(1800, speechMs * 0.6));
+        const pauseMs =
+          type === "question"
+            ? 900
+            : type === "chunk"
+              ? Math.min(3000, Math.max(1400, speechMs * 0.65))
+              : Math.min(4500, Math.max(1800, speechMs * 0.6));
 
-      segments.push({
-        text: clean,
-        speechMs,
-        pauseMs
-      });
-    }
+        segments.push({
+          text: clean,
+          speechMs,
+          pauseMs
+        });
+      }
 
-    addSegment(question.es, "question");
-    addSegment(question.answerEs, "answer");
-
-    
-  });
+      addSegment(question.es, "question");
+      addSegment(question.answerEs, "answer");
+    });
 
   return segments;
 }
@@ -3929,12 +3992,12 @@ if (playingIslandId) {
 
   const segments = islandAudioSegments(island);
 
-  if (!segments.length) {
-    showToast(
-      "This island has no Spanish text to play."
-    );
-    return;
-  }
+ if (!segments.length) {
+  showToast(
+    "No audio cards available. They may all be mastered or excluded."
+  );
+  return;
+}
 
   playingIslandId = island.id;
   islandPlaybackStartedAt = Date.now();
@@ -4520,7 +4583,10 @@ function openEditCardModal() {
 editTags.value = Array.isArray(question.tags)
   ? question.tags.join(", ")
   : "";
-  editCardModal.hidden = false;
+
+editExcludeFromAudio.checked = Boolean(question.excludeFromAudio);
+
+editCardModal.hidden = false;
 
   setTimeout(() => {
     editQuestionEs.focus();
@@ -4551,7 +4617,9 @@ function saveEditedCard() {
     .map((item) => item.trim())
     .filter(Boolean);
 question.tags = parseTags(editTags.value);
-  saveData();
+question.excludeFromAudio = editExcludeFromAudio.checked;
+
+saveData();
   closeEditCardModal();
   render();
 
@@ -4567,6 +4635,7 @@ function duplicateCurrentCard() {
 copiedCard.confidenceByMode = createConfidenceByMode(1);
 copiedCard.tags = withRequiredTag(copiedCard.tags || [], "new");
 copiedCard.notes = question.notes || "";
+copiedCard.excludeFromAudio = false;
 
   island.questions.splice(activeQuestionIndex + 1, 0, copiedCard);
 
@@ -5222,6 +5291,76 @@ function importExcelStyleIsland(rows, islandName) {
     });
   }
 
+  function normaliseCardText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[¿?¡!.,;:]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function cardKey(question) {
+    return [
+      normaliseCardText(question.es),
+      normaliseCardText(question.en)
+    ].join("||");
+  }
+
+  function mergeTags(existingTags, importedTags) {
+    const combined = [
+      ...(Array.isArray(existingTags) ? existingTags : []),
+      ...(Array.isArray(importedTags) ? importedTags : [])
+    ];
+
+    return [...new Set(combined.filter(Boolean))];
+  }
+
+  function mergeImportedCards(existingQuestions, importedCards) {
+    const importedByKey = new Map();
+
+    importedCards.forEach((card) => {
+      importedByKey.set(cardKey(card), card);
+    });
+
+    const matchedKeys = new Set();
+
+    const updatedExistingQuestions = existingQuestions.map((existingCard) => {
+      const key = cardKey(existingCard);
+      const importedCard = importedByKey.get(key);
+
+      if (!importedCard) {
+        return existingCard;
+      }
+
+      matchedKeys.add(key);
+
+      return {
+        ...existingCard,
+
+        // Update the actual learning content from the CSV.
+        es: importedCard.es,
+        en: importedCard.en,
+        answerEs: importedCard.answerEs,
+        answerEn: importedCard.answerEn,
+        chunks: importedCard.chunks,
+        tags: mergeTags(existingCard.tags, importedCard.tags)
+
+        // Important:
+        // We do NOT overwrite confidence, confidenceByMode, history, srs,
+        // notes, difficult status, or excludeFromAudio.
+      };
+    });
+
+    const newCards = importedCards.filter((card) =>
+      !matchedKeys.has(cardKey(card))
+    );
+
+    return [
+      ...updatedExistingQuestions,
+      ...newCards
+    ];
+  }
+
   const questionEnColumn = findColumn("question", "english");
   const questionEsColumn = findColumn("question", "spanish");
   const answerEnColumn = findColumn("answer", "english");
@@ -5243,16 +5382,16 @@ function importExcelStyleIsland(rows, islandName) {
       if (!questionEs || !answerEs) return;
 
       cards.push({
-  es: questionEs,
-  en: questionEn,
-  answerEs,
-  answerEn,
-  chunks: [answerEs],
-  tags: ["new"],
-  confidence: 1,
-  confidenceByMode: createConfidenceByMode(1),
-  notes: ""
-});
+        es: questionEs,
+        en: questionEn,
+        answerEs,
+        answerEn,
+        chunks: [answerEs],
+        tags: ["new"],
+        confidence: 1,
+        confidenceByMode: createConfidenceByMode(1),
+        notes: ""
+      });
     });
   } else {
     let currentQuestionEn = "";
@@ -5279,17 +5418,17 @@ function importExcelStyleIsland(rows, islandName) {
       }
 
       if (currentQuestionEs && spanish) {
-       cards.push({
-  es: currentQuestionEs,
-  en: currentQuestionEn,
-  answerEs: spanish,
-  answerEn: english,
-  chunks: [spanish],
-  tags: ["new"],
-  confidence: 1,
-  confidenceByMode: createConfidenceByMode(1),
-  notes: ""
-});
+        cards.push({
+          es: currentQuestionEs,
+          en: currentQuestionEn,
+          answerEs: spanish,
+          answerEn: english,
+          chunks: [spanish],
+          tags: ["new"],
+          confidence: 1,
+          confidenceByMode: createConfidenceByMode(1),
+          notes: ""
+        });
       }
     });
   }
@@ -5310,14 +5449,24 @@ function importExcelStyleIsland(rows, islandName) {
   };
 
   if (existingIndex !== -1) {
-  const shouldReplace = confirm(
-    `"${islandName}" already exists. Replace it with this CSV import?`
-  );
+    const shouldMerge = confirm(
+      `"${islandName}" already exists. Add/update cards from this CSV while keeping your progress?`
+    );
 
-  if (shouldReplace) {
-    islands[existingIndex] = importedIsland;
-    return existingIndex;
-  } else {
+    if (shouldMerge) {
+      islands[existingIndex] = {
+        ...islands[existingIndex],
+        name: islandName,
+        level: islands[existingIndex].level || importedIsland.level,
+        questions: mergeImportedCards(
+          islands[existingIndex].questions || [],
+          cards
+        )
+      };
+
+      return existingIndex;
+    }
+
     islands.push({
       ...importedIsland,
       id: `${importedIsland.id}-${Date.now()}`,
@@ -5326,10 +5475,9 @@ function importExcelStyleIsland(rows, islandName) {
 
     return islands.length - 1;
   }
-} else {
+
   islands.push(importedIsland);
   return islands.length - 1;
-}
 }
 if ("speechSynthesis" in window) {
   loadVoices();
