@@ -640,7 +640,79 @@ h1 {
   min-height: 150px;
   line-height: 1.5;
 }
+  .answer-hint-box {
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--sea-dark);
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 800;
+}
 
+.answer-hint-box[hidden] {
+  display: none;
+}
+
+.answer-hint-box small {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#hintBtn.hint-active {
+  color: #fff;
+  background: var(--sea);
+  border-color: transparent;
+}
+#compareAnswerBtn {
+  grid-column: span 2;
+}
+
+.compare-answer-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.compare-answer-box[hidden] {
+  display: none;
+}
+
+.compare-answer-row strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--sea-dark);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.compare-answer-good {
+  color: var(--sea-dark);
+  font-weight: 900;
+}
+
+.compare-answer-warn {
+  color: #a33b32;
+  font-weight: 900;
+}
+  .compare-save-btn {
+  width: 100%;
+  margin-top: 2px;
+}
 #speakAnswerBtn.recording {
   background: #a33b32;
   color: #fff;
@@ -834,15 +906,29 @@ textarea {
   font-weight: 850;
 }
 
-.hidden-answer .answer-es,
+.answer-hint-hidden {
+  filter: blur(9px);
+  user-select: none;
+}
+
+.answer-hint-visible {
+  filter: none;
+}
+
 .hidden-answer .chunks {
   filter: blur(9px);
   user-select: none;
 }
-.speak-first-hidden .answer-es,
+
 .speak-first-hidden .answer-en,
 .speak-first-hidden .chunks {
   display: none;
+}
+
+#hintBtn.hint-active {
+  color: #fff;
+  background: var(--sea);
+  border-color: transparent;
 }
   .anki-complete-grid {
   display: grid;
@@ -873,8 +959,7 @@ textarea {
   font-size: 12px;
   font-weight: 850;
 }
-  .anki-hidden .question-es,
-.anki-hidden .answer-es,
+ .anki-hidden .question-es,
 .anki-hidden .chunks {
   display: none;
 }
@@ -1524,10 +1609,11 @@ textarea {
 
           <div class="button-row">
   <button id="listenBtn" class="btn primary">Listen</button>
-  <button id="shadowBtn" class="btn soft">Shadow</button>
-  <button id="hideBtn" class="btn soft">Hide Spanish</button>
-  <button id="prevBtn" class="btn soft">Previous</button>
-  <button id="nextBtn" class="btn soft">Next</button>
+<button id="shadowBtn" class="btn soft">Shadow</button>
+<button id="hideBtn" class="btn soft">Hide Spanish</button>
+<button id="hintBtn" class="btn soft">Hint</button>
+<button id="prevBtn" class="btn soft">Previous</button>
+<button id="nextBtn" class="btn soft">Next</button>
 </div>
 
 <div class="inline-confidence">
@@ -1561,23 +1647,29 @@ textarea {
   <span class="section-label">My spoken answer</span>
   <p class="hint">Tap the mic and answer in Spanish.</p>
 
-  <div class="answer-tools">
-    <button id="speakAnswerBtn" class="btn primary full" type="button">
-      🎙 Speak Answer
-    </button>
+ <div class="answer-tools">
+  <button id="speakAnswerBtn" class="btn primary full" type="button">
+    🎙 Speak Answer
+  </button>
 
-    <button id="clearAnswerBtn" class="btn soft full" type="button">
-      Clear
-    </button>
-  </div>
+  <button id="clearAnswerBtn" class="btn soft full" type="button">
+  Try Again
+</button>
 
-  <textarea
-    id="myAnswerText"
-    class="my-answer-box"
-    placeholder="Your spoken answer will appear here..."
-  ></textarea>
+  <button id="compareAnswerBtn" class="btn soft full" type="button">
+    Compare
+  </button>
+</div>
 
-  <p id="speechSupportMsg" class="hint"></p>
+<textarea
+  id="myAnswerText"
+  class="my-answer-box"
+  placeholder="Your spoken answer will appear here..."
+></textarea>
+
+<div id="compareAnswerBox" class="compare-answer-box" hidden></div>
+
+<p id="speechSupportMsg" class="hint"></p>
 
   <div id="chunks" class="chunks" hidden></div>
 </section>
@@ -1878,6 +1970,8 @@ let weakIslandActive = false;
 let activeTagFilter = "";
 let mode = "read";
 let hidden = false;
+let answerHintLevel = 0;
+let lastAnswerHintKey = "";
 let shadowAutoPlay = false;
 let speakFirstRevealed = false;
   let ankiRevealed = false;
@@ -1917,7 +2011,9 @@ const answerEn = document.getElementById("answerEn");
 const chunks = document.getElementById("chunks");
 const speakAnswerBtn = document.getElementById("speakAnswerBtn");
 const clearAnswerBtn = document.getElementById("clearAnswerBtn");
+const compareAnswerBtn = document.getElementById("compareAnswerBtn");
 const myAnswerText = document.getElementById("myAnswerText");
+const compareAnswerBox = document.getElementById("compareAnswerBox");
 const speechSupportMsg = document.getElementById("speechSupportMsg");
 const rating = document.getElementById("rating");
 const cardHistoryBox = document.getElementById("cardHistoryBox");
@@ -2769,8 +2865,171 @@ function clearMyAnswer() {
   question.myAnswer = "";
   myAnswerText.value = "";
 
+  if (compareAnswerBox) {
+    compareAnswerBox.hidden = true;
+    compareAnswerBox.innerHTML = "";
+  }
+
   saveData();
   showToast("My answer cleared.");
+}
+function tryAgainMyAnswer() {
+  const question = activeQuestion();
+
+  question.myAnswer = "";
+  myAnswerText.value = "";
+
+  if (compareAnswerBox) {
+    compareAnswerBox.hidden = true;
+    compareAnswerBox.innerHTML = "";
+  }
+
+  
+
+  if (answerRecording && answerRecognition) {
+    answerRecognition.stop();
+  }
+
+  setTimeout(() => {
+    startAnswerDictation();
+  }, 250);
+}
+function normaliseSpanishText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[¿?¡!.,;:()"“”]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function uniqueWords(text) {
+  return [
+    ...new Set(
+      normaliseSpanishText(text)
+        .split(" ")
+        .filter((word) => word.length > 2)
+    )
+  ];
+}
+
+function compareMyAnswer() {
+  const question = activeQuestion();
+  const spoken = myAnswerText.value.trim();
+  const model = (question.answerEs || "").trim();
+
+  if (!spoken) {
+    showToast("Speak or type an answer first.");
+    return;
+  }
+
+  if (!model) {
+    showToast("No model answer to compare with.");
+    return;
+  }
+
+  const spokenWords = uniqueWords(spoken);
+  const modelWords = uniqueWords(model);
+
+  const spokenSet = new Set(spokenWords);
+  const modelSet = new Set(modelWords);
+
+  const matchedWords = modelWords.filter((word) => spokenSet.has(word));
+  const missingWords = modelWords.filter((word) => !spokenSet.has(word));
+  const extraWords = spokenWords.filter((word) => !modelSet.has(word));
+
+  const matchPercent = modelWords.length
+    ? Math.round((matchedWords.length / modelWords.length) * 100)
+    : 0;
+
+  let verdict = "";
+
+  if (matchPercent >= 85) {
+    verdict = `<span class="compare-answer-good">Strong match ✅</span>`;
+  } else if (matchPercent >= 60) {
+    verdict = `<span class="compare-answer-good">Pretty close 👍</span>`;
+  } else {
+    verdict = `<span class="compare-answer-warn">Different from the model — review it slowly.</span>`;
+  }
+
+  const missingText = missingWords.length
+    ? missingWords.slice(0, 10).join(", ")
+    : "Nothing obvious.";
+
+  const extraText = extraWords.length
+    ? extraWords.slice(0, 10).join(", ")
+    : "Nothing obvious.";
+
+  compareAnswerBox.innerHTML = `
+    <div class="compare-answer-row">
+      <strong>Result</strong>
+      ${verdict}<br>
+      Match: ${matchPercent}%
+    </div>
+
+    <div class="compare-answer-row">
+      <strong>You said</strong>
+      ${spoken}
+    </div>
+
+    <div class="compare-answer-row">
+      <strong>Model answer</strong>
+      ${model}
+    </div>
+
+    <div class="compare-answer-row">
+      <strong>Words missing from your answer</strong>
+      ${missingText}
+    </div>
+
+    <div class="compare-answer-row">
+  <strong>Extra / different words you used</strong>
+  ${extraText}
+</div>
+
+<button id="saveSpokenAnswerBtn" class="btn primary full compare-save-btn" type="button">
+  Save my answer as another model answer
+</button>
+  `;
+
+  compareAnswerBox.hidden = false;
+}
+  function saveSpokenAnswerAsModelAnswer() {
+  if (weakIslandActive) {
+    showToast("Switch to the original island before saving a new answer.");
+    return;
+  }
+
+  const island = activeIsland();
+  const question = activeQuestion();
+  const spoken = myAnswerText.value.trim();
+
+  if (!spoken) {
+    showToast("Speak or type an answer first.");
+    return;
+  }
+
+  const newCard = structuredClone(question);
+
+  newCard.answerEs = spoken;
+  newCard.answerEn = "";
+  newCard.myAnswer = "";
+  newCard.confidence = 1;
+  newCard.confidenceByMode = createConfidenceByMode(1);
+  newCard.history = [];
+  newCard.notes = "";
+  newCard.excludeFromAudio = false;
+  newCard.tags = withRequiredTag(newCard.tags || [], "new");
+
+  island.questions.splice(activeQuestionIndex + 1, 0, newCard);
+
+  activeQuestionIndex += 1;
+
+  saveData();
+  render();
+
+  showToast("Your answer was saved as a new model answer.");
 }
 function createConfidenceByMode(score = 3) {
   return {
@@ -3614,6 +3873,213 @@ function renderAnkiCompleteScreen() {
     .getElementById("startAnotherAnkiBtn")
     .addEventListener("click", startAnkiReview);
 }
+  function getAnswerHintKey() {
+  return `${weakIslandActive ? "weak" : activeIslandIndex}-${activeQuestionIndex}`;
+}
+
+function createSmoothHintParts(text) {
+  const clean = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!clean) return [];
+
+  const sentenceParts = clean
+    .split(/(?<=[,.;:!?])\s+|\s+-\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const hintParts = [];
+
+  sentenceParts.forEach((part) => {
+    const words = part.split(/\s+/).filter(Boolean);
+
+    if (words.length <= 6) {
+      hintParts.push(part);
+      return;
+    }
+
+    for (let index = 0; index < words.length; index += 5) {
+      hintParts.push(words.slice(index, index + 5).join(" "));
+    }
+  });
+
+  return hintParts;
+}
+
+function updateAnswerHintBox() {
+  const hintBox = document.getElementById("hintBox");
+  const hintBtn = document.getElementById("hintBtn");
+
+  if (!hintBox || !hintBtn) return;
+
+  const question = activeQuestion();
+  const hintParts = createSmoothHintParts(question.answerEs);
+
+  if (!answerHintLevel || !hintParts.length) {
+    hintBox.hidden = true;
+    hintBox.innerHTML = "";
+    hintBtn.classList.remove("hint-active");
+    hintBtn.textContent = "Hint";
+    return;
+  }
+
+  const visibleParts = hintParts.slice(0, answerHintLevel);
+  const hintText = visibleParts.join(" ");
+  const hasMore = answerHintLevel < hintParts.length;
+
+  hintBox.innerHTML = `
+    <small>Hint ${Math.min(answerHintLevel, hintParts.length)} / ${hintParts.length}</small>
+    ${hintText}${hasMore ? "..." : ""}
+  `;
+
+  hintBox.hidden = false;
+  hintBtn.classList.add("hint-active");
+  hintBtn.textContent = hasMore ? "More Hint" : "Full Hint";
+}
+
+function showNextAnswerHint() {
+  const question = activeQuestion();
+  const hintParts = createSmoothHintParts(question.answerEs);
+
+  if (!hintParts.length) {
+    showToast("No answer hint available.");
+    return;
+  }
+
+  answerHintLevel = Math.min(
+    answerHintLevel + 1,
+    hintParts.length
+  );
+
+  updateAnswerHintBox();
+}
+  function getAnswerHintKey() {
+  return `${weakIslandActive ? "weak" : activeIslandIndex}-${activeQuestionIndex}`;
+}
+
+function escapeHintHtml(text) {
+  return String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function createSmoothHintParts(text) {
+  const clean = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!clean) return [];
+
+  const sentenceParts = clean
+    .split(/([,.;:!?]+)\s*/)
+    .reduce((parts, piece, index, array) => {
+      if (!piece.trim()) return parts;
+
+      if (/^[,.;:!?]+$/.test(piece) && parts.length) {
+        parts[parts.length - 1] += piece;
+        return parts;
+      }
+
+      parts.push(piece.trim());
+      return parts;
+    }, []);
+
+  const hintParts = [];
+
+  sentenceParts.forEach((part) => {
+    const words = part.split(/\s+/).filter(Boolean);
+
+    if (words.length <= 6) {
+      hintParts.push(part);
+      return;
+    }
+
+    for (let index = 0; index < words.length; index += 5) {
+      hintParts.push(words.slice(index, index + 5).join(" "));
+    }
+  });
+
+  return hintParts;
+}
+
+function shouldHideSpanishAnswer() {
+  return (
+    hidden ||
+    (mode === "conversation" && !speakFirstRevealed) ||
+    (mode === "anki" && !ankiRevealed)
+  );
+}
+
+function renderAnswerWithHints(question) {
+  const hintBtn = document.getElementById("hintBtn");
+  const answerText = question.answerEs || "";
+  const hideSpanishAnswer = shouldHideSpanishAnswer();
+  const hintParts = createSmoothHintParts(answerText);
+
+  if (!answerText.trim()) {
+    answerEs.textContent = "";
+    return;
+  }
+
+  if (!hideSpanishAnswer) {
+    answerEs.textContent = answerText;
+
+    if (hintBtn) {
+      hintBtn.classList.remove("hint-active");
+      hintBtn.textContent = "Hint";
+    }
+
+    return;
+  }
+
+  const visibleCount = Math.min(answerHintLevel, hintParts.length);
+
+  answerEs.innerHTML = hintParts
+    .map((part, index) => {
+      const visible = index < visibleCount;
+
+      return `<span class="${visible ? "answer-hint-visible" : "answer-hint-hidden"}">${escapeHintHtml(part)}</span>`;
+    })
+    .join(" ");
+
+  if (hintBtn) {
+    const hasHint = visibleCount > 0;
+    const hasMore = visibleCount < hintParts.length;
+
+    hintBtn.classList.toggle("hint-active", hasHint);
+    hintBtn.textContent = hasMore
+      ? hasHint
+        ? "More Hint"
+        : "Hint"
+      : "Full Hint";
+  }
+}
+
+function showNextAnswerHint() {
+  const question = activeQuestion();
+  const hintParts = createSmoothHintParts(question.answerEs);
+
+  if (!shouldHideSpanishAnswer()) {
+    showToast("Hide the Spanish first to use hints.");
+    return;
+  }
+
+  if (!hintParts.length) {
+    showToast("No answer hint available.");
+    return;
+  }
+
+  answerHintLevel = Math.min(
+    answerHintLevel + 1,
+    hintParts.length
+  );
+
+  renderQuestion();
+}
 function renderQuestion() {
   if (ankiComplete) {
     renderAnkiCompleteScreen();
@@ -3622,8 +4088,16 @@ function renderQuestion() {
 
   mainCard.classList.remove("anki-complete-state");
 
-  const island = activeIsland();
-  const question = activeQuestion();
+ const island = activeIsland();
+const question = activeQuestion();
+
+const currentHintKey = getAnswerHintKey();
+
+if (currentHintKey !== lastAnswerHintKey) {
+  answerHintLevel = 0;
+  lastAnswerHintKey = currentHintKey;
+}
+
 document.getElementById("listenBtn").disabled = false;
 document.getElementById("shadowBtn").disabled = false;
 document.getElementById("prevBtn").disabled = false;
@@ -3647,9 +4121,9 @@ counterPill.textContent = sessionActive
   sessionProgressBar.style.width = "0%";
 }
   questionEs.textContent = question.es;
-  questionEn.textContent = question.en;
-  answerEs.textContent = question.answerEs;
-  answerEn.textContent = question.answerEn;
+questionEn.textContent = question.en;
+renderAnswerWithHints(question);
+answerEn.textContent = question.answerEn;
 
   chunks.innerHTML = "";
 
@@ -3709,6 +4183,7 @@ document.getElementById("hideBtn").textContent =
 
 updateDifficultButton();
 renderCardHistory();
+updateAnswerHintBox();
 }
 
 function renderRating() {
@@ -4807,6 +5282,8 @@ editCardModal.addEventListener("click", (event) => {
     closeEditCardModal();
   }
 });
+  document.getElementById("hintBtn").addEventListener("click", showNextAnswerHint);
+  document.getElementById("hintBtn").addEventListener("click", showNextAnswerHint);
 document.getElementById("listenBtn").addEventListener("click", () => {
   const question = activeQuestion();
 
@@ -4818,7 +5295,13 @@ document.getElementById("listenBtn").addEventListener("click", () => {
   speak(question.answerEs);
 });
   speakAnswerBtn.addEventListener("click", startAnswerDictation);
-clearAnswerBtn.addEventListener("click", clearMyAnswer);
+clearAnswerBtn.addEventListener("click", tryAgainMyAnswer);
+compareAnswerBtn.addEventListener("click", compareMyAnswer);
+  compareAnswerBox.addEventListener("click", (event) => {
+  if (event.target.id === "saveSpokenAnswerBtn") {
+    saveSpokenAnswerAsModelAnswer();
+  }
+});
 const shadowButton = document.getElementById("shadowBtn");
 
 shadowButton.addEventListener("pointerdown", () => {
@@ -4887,7 +5370,8 @@ shadowButton.addEventListener("click", () => {
 });
 
 document.getElementById("hideBtn").addEventListener("click", () => {
-  
+  answerHintLevel = 0;
+
   if (mode === "anki") {
     ankiRevealed = !ankiRevealed;
     renderQuestion();
