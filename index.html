@@ -1798,7 +1798,7 @@ textarea {
       <label for="settingDailyGoal">Daily input goal</label>
       <input id="settingDailyGoal" type="number" min="1" step="1" placeholder="Goal in minutes">
 <label for="settingSessionSize">Session card count</label>
-<input id="settingSessionSize" type="number" min="1" max="50" step="1" placeholder="Cards per session">
+<input id="settingSessionSize" type="number" min="1" max="100" step="1" placeholder="Cards per session">
 <p class="hint">The session will use fewer cards if the island has fewer available.</p>
      
 
@@ -2222,8 +2222,8 @@ const ankiDailyLimit = Number(settingAnkiDailyLimit.value);
     showToast("Daily goal is not valid.");
     return;
   }
-if (!Number.isFinite(sessionSize) || sessionSize < 1 || sessionSize > 50) {
-  showToast("Session card count must be between 1 and 50.");
+if (!Number.isFinite(sessionSize) || sessionSize < 1 || sessionSize > 100) {
+  showToast("Session card count must be between 1 and 100.");
   return;
 }
 
