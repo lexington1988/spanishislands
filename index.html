@@ -1985,6 +1985,7 @@ let ankiReviewStats = {
 let sessionActive = false;
 let islandMenuOpen = false;
 let sessionCards = [];
+let sessionIslandIndexes = {};
 let sessionCardModes = {};
 let sessionPosition = 0;
 let sessionStartedAt = 0;
@@ -3239,38 +3240,28 @@ function isWeakQuestion(question) {
   const scores = getConfidenceScores(question);
 
   return [
-    scores.read,
     scores.recall,
     scores.conversation,
-    scores.speakFirst,
     scores.anki
   ].some((score) => Number(score) <= 2);
 }
   function getWeakReviewModeForQuestion(question) {
   const scores = getConfidenceScores(question);
 
-  const weakModes = [
-    {
-      mode: "recall",
-      score: Number(scores.recall)
-    },
-    {
-      mode: "read",
-      score: Number(scores.read)
-    },
-    {
-      mode: "conversation",
-      score: Number(scores.conversation)
-    },
-    {
-      mode: "anki",
-      score: Number(scores.anki)
-    },
-    {
-      mode: "conversation",
-      score: Number(scores.speakFirst)
-    }
-  ].filter((item) => Number.isFinite(item.score) && item.score <= 2);
+ const weakModes = [
+  {
+    mode: "recall",
+    score: Number(scores.recall)
+  },
+  {
+    mode: "conversation",
+    score: Number(scores.conversation)
+  },
+  {
+    mode: "anki",
+    score: Number(scores.anki)
+  }
+].filter((item) => Number.isFinite(item.score) && item.score <= 2);
 
   if (!weakModes.length) {
     return "recall";
@@ -4755,11 +4746,29 @@ function shuffleItems(items) {
 }
 
 function addUniqueSessionCard(list, item) {
-  if (list.some((existing) => existing.index === item.index)) {
+  const itemIslandIndex = Number.isInteger(item.islandIndex)
+    ? item.islandIndex
+    : activeIslandIndex;
+
+  if (
+    list.some((existing) => {
+      const existingIslandIndex = Number.isInteger(existing.islandIndex)
+        ? existing.islandIndex
+        : activeIslandIndex;
+
+      return (
+        existingIslandIndex === itemIslandIndex &&
+        existing.index === item.index
+      );
+    })
+  ) {
     return;
   }
 
-  list.push(item);
+  list.push({
+    ...item,
+    islandIndex: itemIslandIndex
+  });
 }
 
 function getWeakestModeForQuestion(question) {
@@ -4828,12 +4837,13 @@ function applySessionCardMode(cardMode) {
   });
 }
 
-function buildTodayPracticeCards(island, sessionSize) {
+function buildTodayPracticeCards(island, sessionSize, islandIndex = activeIslandIndex) {
   const selected = [];
 
   const allCards = island.questions.map((question, index) => ({
     question,
     index,
+    islandIndex,
     mode: getSmartPracticeModeForQuestion(question)
   }));
 
@@ -4886,11 +4896,76 @@ function buildTodayPracticeCards(island, sessionSize) {
   return selected;
 }
 
-function startPracticeSession() {
-  const island = activeIsland();
+function buildMixedTodayPracticeCards(sessionSize) {
+  const selected = [];
 
-  if (!island.questions.length) {
-    showToast("This island has no cards.");
+  const allCards = islands.flatMap((island, islandIndex) =>
+    island.questions.map((question, index) => ({
+      question,
+      index,
+      islandIndex,
+      islandName: island.name,
+      mode: getSmartPracticeModeForQuestion(question)
+    }))
+  );
+
+  const unmasteredCards = allCards.filter(
+    (item) => !isMasteredQuestion(item.question)
+  );
+
+  const masteredCards = allCards.filter(
+    (item) => isMasteredQuestion(item.question)
+  );
+
+  const dueAnkiCards = shuffleItems(
+    unmasteredCards.filter((item) => isCardDue(item.question))
+  );
+
+  const weakCards = shuffleItems(
+    unmasteredCards.filter((item) => isWeakQuestion(item.question))
+  );
+
+  const lowConfidenceCards = shuffleItems(
+    unmasteredCards.filter((item) => {
+      const scores = getConfidenceScores(item.question);
+
+      return (
+        Number(scores.recall) <= 3 ||
+        Number(scores.read) <= 3 ||
+        Number(scores.conversation) <= 3
+      );
+    })
+  );
+
+  const normalFillerCards = shuffleItems(unmasteredCards);
+
+  const masteredMaintenanceCards = shuffleItems(masteredCards);
+
+  [
+    dueAnkiCards,
+    weakCards,
+    lowConfidenceCards,
+    normalFillerCards,
+    masteredMaintenanceCards
+  ].forEach((group) => {
+    group.forEach((item) => {
+      if (selected.length < sessionSize) {
+        addUniqueSessionCard(selected, item);
+      }
+    });
+  });
+
+  return selected;
+}
+
+function startPracticeSession() {
+  const allCardCount = islands.reduce(
+    (total, island) => total + island.questions.length,
+    0
+  );
+
+  if (!allCardCount) {
+    showToast("You have no cards yet.");
     return;
   }
 
@@ -4898,11 +4973,11 @@ function startPracticeSession() {
 
   const sessionSize = Math.min(
     requestedSessionSize,
-    island.questions.length
+    allCardCount
   );
 
   const todayPracticeCards =
-    buildTodayPracticeCards(island, sessionSize);
+    buildMixedTodayPracticeCards(sessionSize);
 
   if (!todayPracticeCards.length) {
     showToast("No cards available for today's practice.");
@@ -4910,27 +4985,30 @@ function startPracticeSession() {
   }
 
   sessionCards = todayPracticeCards.map((item) => item.index);
-
+  sessionIslandIndexes = {};
   sessionCardModes = {};
 
-  todayPracticeCards.forEach((item) => {
-    sessionCardModes[item.index] = item.mode;
+  todayPracticeCards.forEach((item, position) => {
+    sessionIslandIndexes[position] = item.islandIndex;
+    sessionCardModes[position] = item.mode;
   });
 
   sessionActive = true;
+  weakIslandActive = false;
   sessionPosition = 0;
   sessionStartedAt = Date.now();
 
+  activeIslandIndex = sessionIslandIndexes[sessionPosition];
   activeQuestionIndex = sessionCards[sessionPosition];
 
-  applySessionCardMode(sessionCardModes[activeQuestionIndex]);
+  applySessionCardMode(sessionCardModes[sessionPosition]);
 
   startSessionBtn.hidden = true;
   endSessionBtn.hidden = false;
 
   render();
 
-  showToast(`Started today's ${sessionCards.length}-card practice.`);
+  showToast(`Started mixed ${sessionCards.length}-card practice.`);
 }
 
 function endPracticeSession(showSummary = true) {
@@ -4944,6 +5022,7 @@ function endPracticeSession(showSummary = true) {
 
   sessionActive = false;
 sessionCards = [];
+sessionIslandIndexes = {};
 sessionCardModes = {};
 sessionPosition = 0;
 sessionStartedAt = 0;
@@ -4969,6 +5048,7 @@ function finishPracticeSession() {
 
   sessionActive = false;
 sessionCards = [];
+sessionIslandIndexes = {};
 sessionCardModes = {};
 sessionPosition = 0;
 sessionStartedAt = 0;
@@ -4996,9 +5076,10 @@ function nextQuestion(step = 1) {
         sessionPosition = sessionCards.length - 1;
       }
 
-      activeQuestionIndex = sessionCards[sessionPosition];
+     activeIslandIndex = sessionIslandIndexes[sessionPosition];
+activeQuestionIndex = sessionCards[sessionPosition];
 
-applySessionCardMode(sessionCardModes[activeQuestionIndex]);
+applySessionCardMode(sessionCardModes[sessionPosition]);
 
 render();
 
