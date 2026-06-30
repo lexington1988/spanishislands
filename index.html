@@ -2185,9 +2185,18 @@ function resetTodayInput() {
 }
 function todayKey() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+
+  // Reset the practice day at 2am instead of midnight.
+  // Before 2am, treat it as part of the previous day.
+  const practiceDay = new Date(now);
+
+  if (practiceDay.getHours() < 2) {
+    practiceDay.setDate(practiceDay.getDate() - 1);
+  }
+
+  const year = practiceDay.getFullYear();
+  const month = String(practiceDay.getMonth() + 1).padStart(2, "0");
+  const day = String(practiceDay.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
@@ -2317,6 +2326,7 @@ function isMasteredForAudio(question) {
 
 function islandAudioSegments(island) {
   const segments = [];
+  const groupedQuestions = new Map();
 
   island.questions
     .filter((question) =>
@@ -2324,35 +2334,55 @@ function islandAudioSegments(island) {
       !question.excludeFromAudio
     )
     .forEach((question) => {
-      const used = new Set();
+      const questionKey = (question.es || "")
+        .trim()
+        .toLocaleLowerCase("es");
 
-      function addSegment(text, type) {
-        const clean = (text || "").trim();
-        const key = clean.toLocaleLowerCase("es");
+      if (!questionKey) return;
 
-        if (!clean || used.has(key)) return;
-
-        used.add(key);
-
-        const speechMs = estimatedSpeechMs(clean);
-
-        const pauseMs =
-          type === "question"
-            ? 900
-            : type === "chunk"
-              ? Math.min(3000, Math.max(1400, speechMs * 0.65))
-              : Math.min(4500, Math.max(1800, speechMs * 0.6));
-
-        segments.push({
-          text: clean,
-          speechMs,
-          pauseMs
+      if (!groupedQuestions.has(questionKey)) {
+        groupedQuestions.set(questionKey, {
+          questionText: question.es,
+          answers: []
         });
       }
 
-      addSegment(question.es, "question");
-      addSegment(question.answerEs, "answer");
+      groupedQuestions.get(questionKey).answers.push(question.answerEs);
     });
+
+  function addSegment(text, type, used) {
+    const clean = (text || "").trim();
+    const key = clean.toLocaleLowerCase("es");
+
+    if (!clean || used.has(key)) return;
+
+    used.add(key);
+
+    const speechMs = estimatedSpeechMs(clean);
+
+    const pauseMs =
+      type === "question"
+        ? 1200
+        : Math.min(4500, Math.max(1800, speechMs * 0.6));
+
+    segments.push({
+      text: clean,
+      speechMs,
+      pauseMs
+    });
+  }
+
+  groupedQuestions.forEach((group) => {
+    const used = new Set();
+
+    // Say the question once.
+    addSegment(group.questionText, "question", used);
+
+    // Then say all unique answers for that question.
+    group.answers.forEach((answer) => {
+      addSegment(answer, "answer", used);
+    });
+  });
 
   return segments;
 }
@@ -2666,8 +2696,14 @@ function startAnswerDictation() {
 
   answerRecognition = new SpeechRecognition();
   answerRecognition.lang = "es-ES";
+
+  // Better for Android:
+  // - interimResults lets you see speech while speaking
+  // - continuous false avoids Android repeating chunks endlessly
+  // - if Android stops after a pause, tap mic again to continue
   answerRecognition.interimResults = true;
-  answerRecognition.continuous = true;
+  answerRecognition.continuous = false;
+  answerRecognition.maxAlternatives = 1;
 
   answerRecording = true;
   updateSpeakAnswerButton();
@@ -2676,22 +2712,26 @@ function startAnswerDictation() {
     speechSupportMsg.textContent = "Listening... speak in Spanish.";
   }
 
-  let finalTranscript = question.myAnswer || "";
+  const startingTranscript = question.myAnswer || "";
 
   answerRecognition.onresult = (event) => {
-    let interimTranscript = "";
+    const pieces = [];
 
-    for (let index = event.resultIndex; index < event.results.length; index += 1) {
-      const transcript = event.results[index][0].transcript;
+    for (let index = 0; index < event.results.length; index += 1) {
+      const transcript = event.results[index][0].transcript.trim();
 
-      if (event.results[index].isFinal) {
-        finalTranscript += `${finalTranscript ? " " : ""}${transcript.trim()}`;
-      } else {
-        interimTranscript += transcript;
+      if (transcript) {
+        pieces.push(transcript);
       }
     }
 
-    const combined = `${finalTranscript}${interimTranscript ? " " + interimTranscript : ""}`.trim();
+    const latestTranscript = pieces.join(" ").trim();
+
+    if (!latestTranscript) return;
+
+    const combined = `${startingTranscript} ${latestTranscript}`
+      .replace(/\s+/g, " ")
+      .trim();
 
     myAnswerText.value = combined;
     question.myAnswer = combined;
@@ -2716,7 +2756,7 @@ function startAnswerDictation() {
     saveData();
 
     if (speechSupportMsg) {
-      speechSupportMsg.textContent = "Recording stopped.";
+      speechSupportMsg.textContent = "Recording paused. Tap the mic again to continue.";
     }
   };
 
@@ -3169,14 +3209,20 @@ const dueIndexes = allDueIndexes
   }
 
   sessionActive = true;
-  sessionCards = dueIndexes;
-  sessionPosition = 0;
-  activeQuestionIndex = sessionCards[sessionPosition];
+sessionCards = dueIndexes;
+sessionCardModes = {};
 
-  mode = "anki";
-  hidden = false;
-  speakFirstRevealed = true;
-  ankiRevealed = false;
+sessionCards.forEach((index) => {
+  sessionCardModes[index] = "anki";
+});
+
+sessionPosition = 0;
+activeQuestionIndex = sessionCards[sessionPosition];
+
+mode = "anki";
+hidden = false;
+speakFirstRevealed = true;
+ankiRevealed = false;
 
   render();
 
