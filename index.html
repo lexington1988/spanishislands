@@ -713,6 +713,39 @@ h1 {
   width: 100%;
   margin-top: 2px;
 }
+  #aiStartBtn,
+#aiSendBtn {
+  grid-column: span 2;
+}
+
+.ai-chat-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ai-chat-box[hidden] {
+  display: none;
+}
+
+.ai-chat-row strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--sea-dark);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ai-chat-text {
+  white-space: pre-wrap;
+}
 #speakAnswerBtn.recording {
   background: #a33b32;
   color: #fff;
@@ -1647,17 +1680,25 @@ textarea {
   <span class="section-label">My spoken answer</span>
   <p class="hint">Tap the mic and answer in Spanish.</p>
 
- <div class="answer-tools">
+<div class="answer-tools">
   <button id="speakAnswerBtn" class="btn primary full" type="button">
     🎙 Speak Answer
   </button>
 
   <button id="clearAnswerBtn" class="btn soft full" type="button">
-  Try Again
-</button>
+    Try Again
+  </button>
 
   <button id="compareAnswerBtn" class="btn soft full" type="button">
     Compare
+  </button>
+
+  <button id="aiStartBtn" class="btn soft full" type="button">
+    Start AI Chat
+  </button>
+
+  <button id="aiSendBtn" class="btn primary full" type="button">
+    Send to AI
   </button>
 </div>
 
@@ -1666,6 +1707,8 @@ textarea {
   class="my-answer-box"
   placeholder="Your spoken answer will appear here..."
 ></textarea>
+
+<div id="aiChatBox" class="ai-chat-box" hidden></div>
 
 <div id="compareAnswerBox" class="compare-answer-box" hidden></div>
 
@@ -1998,6 +2041,8 @@ let practicePlaybackTimer = null;
 let practicePlaybackToken = 0;
 let shadowHoldTimer = null;
 let shadowSuppressNextClick = false;
+  let aiChatMessages = [];
+let aiChatActive = false;
 const islandList = document.getElementById("islandList");
   const tagFilterSelect = document.getElementById("tagFilterSelect");
 const mainCard = document.getElementById("mainCard");
@@ -2013,7 +2058,10 @@ const chunks = document.getElementById("chunks");
 const speakAnswerBtn = document.getElementById("speakAnswerBtn");
 const clearAnswerBtn = document.getElementById("clearAnswerBtn");
 const compareAnswerBtn = document.getElementById("compareAnswerBtn");
+const aiStartBtn = document.getElementById("aiStartBtn");
+const aiSendBtn = document.getElementById("aiSendBtn");
 const myAnswerText = document.getElementById("myAnswerText");
+const aiChatBox = document.getElementById("aiChatBox");
 const compareAnswerBox = document.getElementById("compareAnswerBox");
 const speechSupportMsg = document.getElementById("speechSupportMsg");
 const rating = document.getElementById("rating");
@@ -2770,7 +2818,156 @@ function updateSpeakAnswerButton() {
     ? "■ Stop Recording"
     : "🎙 Speak Answer";
 }
+function escapeAiHtml(text) {
+  return String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
+function getIslandContextForAi() {
+  const island = activeIsland();
+
+  const examples = island.questions
+    .slice(0, 12)
+    .map((question) => {
+      return `Q: ${question.es}\nA: ${question.answerEs}`;
+    })
+    .join("\n\n");
+
+  return {
+    islandName: island.name,
+    currentQuestionEs: activeQuestion().es,
+    currentQuestionEn: activeQuestion().en,
+    examples
+  };
+}
+
+function renderAiChatBox() {
+  if (!aiChatBox) return;
+
+  if (!aiChatMessages.length) {
+    aiChatBox.hidden = true;
+    aiChatBox.innerHTML = "";
+    return;
+  }
+
+  aiChatBox.innerHTML = aiChatMessages
+    .slice(-6)
+    .map((item) => {
+      const label = item.role === "user" ? "You" : "AI Spanish partner";
+
+      return `
+        <div class="ai-chat-row">
+          <strong>${label}</strong>
+          <div class="ai-chat-text">${escapeAiHtml(item.text)}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  aiChatBox.hidden = false;
+}
+
+async function startAiChat() {
+  aiChatActive = true;
+  aiChatMessages = [];
+
+  const context = getIslandContextForAi();
+
+  myAnswerText.value = "";
+  activeQuestion().myAnswer = "";
+
+  if (compareAnswerBox) {
+    compareAnswerBox.hidden = true;
+    compareAnswerBox.innerHTML = "";
+  }
+
+  aiChatMessages.push({
+    role: "assistant",
+    text: `Vamos a practicar "${context.islandName}". Te haré preguntas sencillas en español.`
+  });
+
+  renderAiChatBox();
+
+  const opener = `Vamos a practicar "${context.islandName}". Primero: ${context.currentQuestionEs}`;
+
+  aiChatMessages.push({
+    role: "assistant",
+    text: opener
+  });
+
+  renderAiChatBox();
+  speak(opener);
+}
+
+async function sendAnswerToAi() {
+  const userText = myAnswerText.value.trim();
+
+  if (!userText) {
+    showToast("Speak or type an answer first.");
+    return;
+  }
+
+  aiChatActive = true;
+
+  aiChatMessages.push({
+    role: "user",
+    text: userText
+  });
+
+  renderAiChatBox();
+
+  aiSendBtn.disabled = true;
+  aiSendBtn.textContent = "Thinking...";
+
+  try {
+    const context = getIslandContextForAi();
+
+    const response = await fetch("/api/spanish-chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        islandName: context.islandName,
+        currentQuestionEs: context.currentQuestionEs,
+        currentQuestionEn: context.currentQuestionEn,
+        islandExamples: context.examples,
+        messages: aiChatMessages.slice(-8)
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("AI request failed.");
+    }
+
+    const data = await response.json();
+    const reply = String(data.reply || "").trim();
+
+    if (!reply) {
+      throw new Error("The AI did not return a reply.");
+    }
+
+    aiChatMessages.push({
+      role: "assistant",
+      text: reply
+    });
+
+    myAnswerText.value = "";
+    activeQuestion().myAnswer = "";
+
+    renderAiChatBox();
+    speak(reply);
+  } catch (error) {
+    showToast(error.message || "AI chat failed.");
+  } finally {
+    aiSendBtn.disabled = false;
+    aiSendBtn.textContent = "Send to AI";
+  }
+}
 function startAnswerDictation() {
   const SpeechRecognition = getSpeechRecognitionConstructor();
 
@@ -5363,7 +5560,7 @@ editCardModal.addEventListener("click", (event) => {
     closeEditCardModal();
   }
 });
-  document.getElementById("hintBtn").addEventListener("click", showNextAnswerHint);
+
   document.getElementById("hintBtn").addEventListener("click", showNextAnswerHint);
 document.getElementById("listenBtn").addEventListener("click", () => {
   const question = activeQuestion();
@@ -5378,11 +5575,16 @@ document.getElementById("listenBtn").addEventListener("click", () => {
   speakAnswerBtn.addEventListener("click", startAnswerDictation);
 clearAnswerBtn.addEventListener("click", tryAgainMyAnswer);
 compareAnswerBtn.addEventListener("click", compareMyAnswer);
-  compareAnswerBox.addEventListener("click", (event) => {
+
+aiStartBtn.addEventListener("click", startAiChat);
+aiSendBtn.addEventListener("click", sendAnswerToAi);
+
+compareAnswerBox.addEventListener("click", (event) => {
   if (event.target.id === "saveSpokenAnswerBtn") {
     saveSpokenAnswerAsModelAnswer();
   }
 });
+
 const shadowButton = document.getElementById("shadowBtn");
 
 shadowButton.addEventListener("pointerdown", () => {
@@ -5927,50 +6129,68 @@ function importExcelStyleIsland(rows, islandName) {
   }
 
   function mergeImportedCards(existingQuestions, importedCards) {
-    const importedByKey = new Map();
+  /*
+    Store every imported card for each question in order.
 
-    importedCards.forEach((card) => {
-      importedByKey.set(cardKey(card), card);
-    });
+    This is important because one question may intentionally appear
+    several times with different model answers.
+  */
+  const importedQueues = new Map();
 
-    const matchedKeys = new Set();
+  importedCards.forEach((card) => {
+    const key = cardKey(card);
 
-    const updatedExistingQuestions = existingQuestions.map((existingCard) => {
-      const key = cardKey(existingCard);
-      const importedCard = importedByKey.get(key);
+    if (!importedQueues.has(key)) {
+      importedQueues.set(key, []);
+    }
 
-      if (!importedCard) {
-        return existingCard;
-      }
+    importedQueues.get(key).push(card);
+  });
 
-      matchedKeys.add(key);
+  const updatedExistingQuestions = existingQuestions.map((existingCard) => {
+    const key = cardKey(existingCard);
+    const matchingCards = importedQueues.get(key);
 
-      return {
-        ...existingCard,
+    /*
+      Take the next matching occurrence rather than repeatedly using
+      the final card with this question.
+    */
+    if (!matchingCards || matchingCards.length === 0) {
+      return existingCard;
+    }
 
-        // Update the actual learning content from the CSV.
-        es: importedCard.es,
-        en: importedCard.en,
-        answerEs: importedCard.answerEs,
-        answerEn: importedCard.answerEn,
-        chunks: importedCard.chunks,
-        tags: mergeTags(existingCard.tags, importedCard.tags)
+    const importedCard = matchingCards.shift();
 
-        // Important:
-        // We do NOT overwrite confidence, confidenceByMode, history, srs,
-        // notes, difficult status, or excludeFromAudio.
-      };
-    });
+    return {
+      ...existingCard,
 
-    const newCards = importedCards.filter((card) =>
-      !matchedKeys.has(cardKey(card))
-    );
+      // Update learning content from the matching CSV row.
+      es: importedCard.es,
+      en: importedCard.en,
+      answerEs: importedCard.answerEs,
+      answerEn: importedCard.answerEn,
+      chunks: importedCard.chunks,
+      tags: mergeTags(existingCard.tags, importedCard.tags)
 
-    return [
-      ...updatedExistingQuestions,
-      ...newCards
-    ];
-  }
+      // Existing progress and history remain untouched.
+    };
+  });
+
+  /*
+    Anything still in the queues did not already exist,
+    so it is a genuinely new card.
+  */
+  const newCards = [];
+
+  importedQueues.forEach((remainingCards) => {
+    newCards.push(...remainingCards);
+  });
+
+  return [
+    ...updatedExistingQuestions,
+    ...newCards
+  ];
+}
 
   const questionEnColumn = findColumn("question", "english");
   const questionEsColumn = findColumn("question", "spanish");
