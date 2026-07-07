@@ -2036,13 +2036,34 @@ let voices = [];
 let playingIslandId = null;
 let islandPlaybackStartedAt = 0;
 let islandPlaybackTimer = null;
+
+/*
+  Full-island audio pause state.
+*/
+let islandPlaybackPaused = false;
+let islandResumeCallback = null;
+let islandPausedAt = 0;
+let islandTotalPausedMs = 0;
+
+/*
+  True when the current spoken segment was cancelled by Pause.
+  Resume will replay that segment from the beginning.
+*/
+let islandSegmentWasPaused = false;
 let practicePlaybackStartedAt = 0;
 let practicePlaybackTimer = null;
 let practicePlaybackToken = 0;
 let shadowHoldTimer = null;
 let shadowSuppressNextClick = false;
-  let aiChatMessages = [];
+
+let aiChatMessages = [];
 let aiChatActive = false;
+
+/*
+  Remembers which card was last shown so the spoken-answer box
+  is cleared only when the actual card changes.
+*/
+let lastRenderedCardKey = "";
 const islandList = document.getElementById("islandList");
   const tagFilterSelect = document.getElementById("tagFilterSelect");
 const mainCard = document.getElementById("mainCard");
@@ -3006,7 +3027,7 @@ function startAnswerDictation() {
     speechSupportMsg.textContent = "Listening... speak in Spanish.";
   }
 
-  const startingTranscript = question.myAnswer || "";
+  const startingTranscript = myAnswerText.value.trim();
 
   answerRecognition.onresult = (event) => {
     const pieces = [];
@@ -3638,17 +3659,20 @@ function resetAnkiReviewStats() {
 }
 function startAnkiReview() {
   const island = activeIsland();
-resetAnkiReviewStats();
+  const ankiIslandIndex = activeIslandIndex;
+
+  resetAnkiReviewStats();
+
   const allDueIndexes = island.questions
-  .map((question, index) => ({ question, index }))
-  .filter(({ question }) => isCardDue(question))
-  .map(({ index }) => index);
+    .map((question, index) => ({ question, index }))
+    .filter(({ question }) => isCardDue(question))
+    .map(({ index }) => index);
 
-const dailyLimit = Number(appSettings.ankiDailyLimit) || 20;
+  const dailyLimit = Number(appSettings.ankiDailyLimit) || 20;
 
-const dueIndexes = allDueIndexes
-  .sort(() => Math.random() - 0.5)
-  .slice(0, dailyLimit);
+  const dueIndexes = allDueIndexes
+    .sort(() => Math.random() - 0.5)
+    .slice(0, dailyLimit);
 
   if (!dueIndexes.length) {
     showToast("No Anki cards due today.");
@@ -3656,28 +3680,49 @@ const dueIndexes = allDueIndexes
   }
 
   sessionActive = true;
-sessionCards = dueIndexes;
-sessionCardModes = {};
+  sessionCards = dueIndexes;
 
-sessionCards.forEach((index) => {
-  sessionCardModes[index] = "anki";
-});
+  /*
+    These objects must be keyed by session position,
+    not by the card's original index.
+  */
+  sessionIslandIndexes = {};
+  sessionCardModes = {};
 
-sessionPosition = 0;
-activeQuestionIndex = sessionCards[sessionPosition];
+  sessionCards.forEach((cardIndex, position) => {
+    sessionIslandIndexes[position] = ankiIslandIndex;
+    sessionCardModes[position] = "anki";
+  });
 
-mode = "anki";
-hidden = false;
-speakFirstRevealed = true;
-ankiRevealed = false;
+  sessionPosition = 0;
+  sessionStartedAt = Date.now();
+
+  activeIslandIndex = sessionIslandIndexes[sessionPosition];
+  activeQuestionIndex = sessionCards[sessionPosition];
+
+  mode = "anki";
+  hidden = false;
+  speakFirstRevealed = true;
+  ankiRevealed = false;
+  ankiComplete = false;
+
+  document.querySelectorAll(".mode").forEach((button) => {
+    button.classList.toggle(
+      "active",
+      button.dataset.mode === "anki"
+    );
+  });
+
+  startSessionBtn.hidden = true;
+  endSessionBtn.hidden = false;
 
   render();
 
   showToast(
-  allDueIndexes.length > sessionCards.length
-    ? `${sessionCards.length} of ${allDueIndexes.length} due cards loaded.`
-    : `${sessionCards.length} Anki cards due.`
-);
+    allDueIndexes.length > sessionCards.length
+      ? `${sessionCards.length} of ${allDueIndexes.length} due cards loaded.`
+      : `${sessionCards.length} Anki cards due.`
+  );
 }
   function updateGrowEnglishQuestionSuggestions() {
   const suggestions = document.getElementById("existingEnglishQuestionSuggestions");
@@ -3899,37 +3944,54 @@ activeTagFilter = "";
     });
 
     const audioButton = document.createElement("button");
-    const isPlaying = playingIslandId === island.id;
 
-    audioButton.className =
-      `island-audio ${isPlaying ? "playing" : ""}`;
+const isPlaying =
+  playingIslandId === island.id;
 
-    audioButton.type = "button";
+const isPaused =
+  isPlaying && islandPlaybackPaused;
 
-    audioButton.innerHTML =
-      `${formatDuration(islandDuration(island))} ${
-        isPlaying ? "■" : "▶"
-      }`;
+audioButton.className =
+  `island-audio ${isPlaying ? "playing" : ""}`;
 
-    audioButton.title = isPlaying
-      ? `Stop ${island.name}`
-      : `Play all Spanish from ${island.name}`;
+audioButton.type = "button";
 
-    audioButton.setAttribute(
-      "aria-label",
-      audioButton.title
-    );
+audioButton.innerHTML =
+  `${formatDuration(islandDuration(island))} ${
+    isPaused ? "▶" : isPlaying ? "⏸" : "▶"
+  }`;
 
-    audioButton.addEventListener("click", (event) => {
-      event.stopPropagation();
+if (isPaused) {
+  audioButton.title = `Resume ${island.name}`;
+} else if (isPlaying) {
+  audioButton.title = `Pause ${island.name}`;
+} else {
+  audioButton.title =
+    `Play all Spanish from ${island.name}`;
+}
 
-      if (playingIslandId === island.id) {
-        stopIslandPlayback(true);
-        showToast("Island playback stopped.");
-      } else {
-        playIsland(island);
-      }
-    });
+audioButton.setAttribute(
+  "aria-label",
+  audioButton.title
+);
+
+audioButton.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (playingIslandId !== island.id) {
+    playIsland(island);
+    return;
+  }
+
+  if (islandPlaybackPaused) {
+    resumeIslandPlayback();
+    showToast("Island playback resumed.");
+  } else {
+    pauseIslandPlayback();
+    showToast("Island playback paused.");
+  }
+});
 
     wrapper.append(
       button,
@@ -4276,10 +4338,43 @@ function renderQuestion() {
 
   mainCard.classList.remove("anki-complete-state");
 
- const island = activeIsland();
-const question = activeQuestion();
+  const island = activeIsland();
+  const question = activeQuestion();
 
-const currentHintKey = getAnswerHintKey();
+  /*
+    Create a unique reference for the currently displayed card.
+    Include the island index because different islands may use
+    the same card position.
+  */
+  const renderedCardKey =
+    `${activeIslandIndex}-${activeQuestionIndex}`;
+
+  /*
+    Clear the user's previous attempt only when moving to a
+    genuinely different card.
+  */
+  if (renderedCardKey !== lastRenderedCardKey) {
+    if (myAnswerText) {
+      myAnswerText.value = "";
+    }
+question.myAnswer = "";
+    if (compareAnswerBox) {
+      compareAnswerBox.hidden = true;
+      compareAnswerBox.innerHTML = "";
+    }
+
+    if (aiChatBox) {
+      aiChatBox.hidden = true;
+      aiChatBox.innerHTML = "";
+    }
+
+    aiChatMessages = [];
+    aiChatActive = false;
+
+    lastRenderedCardKey = renderedCardKey;
+  }
+
+  const currentHintKey = getAnswerHintKey();
 
 if (currentHintKey !== lastAnswerHintKey) {
   answerHintLevel = 0;
@@ -4327,10 +4422,6 @@ tagList.forEach((tagText) => {
 
 if (chunks) {
   chunks.innerHTML = "";
-}
-
-if (myAnswerText) {
-  myAnswerText.value = question.myAnswer || "";
 }
 
 if (speechSupportMsg) {
@@ -4431,15 +4522,20 @@ renderCardHistory();
         ankiReviewStats[item.grade] += 1;
 
         if (sessionActive && item.grade === "again") {
-          sessionCards.push(currentCardIndex);
+  const newPosition = sessionCards.length;
 
-          saveData();
+  sessionCards.push(currentCardIndex);
 
-          showToast("Card moved to the back of the pack.");
+  sessionIslandIndexes[newPosition] = activeIslandIndex;
+  sessionCardModes[newPosition] = "anki";
 
-          nextQuestion(1);
-          return;
-        }
+  saveData();
+
+  showToast("Card moved to the back of the pack.");
+
+  nextQuestion(1);
+  return;
+}
 
         saveData();
 
@@ -4663,7 +4759,29 @@ function stopIslandPlayback(recordTime = true) {
   }
 
   const hadPlayback = Boolean(playingIslandId);
+
+  /*
+    If stopped while paused, include the current paused period
+    in the total amount excluded from practice time.
+  */
+  if (islandPlaybackPaused && islandPausedAt) {
+    islandTotalPausedMs += Date.now() - islandPausedAt;
+  }
+
+  const activePlaybackTime = islandPlaybackStartedAt
+    ? Math.max(
+        0,
+        Date.now() -
+          islandPlaybackStartedAt -
+          islandTotalPausedMs
+      )
+    : 0;
+
   playingIslandId = null;
+  islandPlaybackPaused = false;
+  islandResumeCallback = null;
+  islandPausedAt = 0;
+  islandTotalPausedMs = 0;
 
   if ("speechSynthesis" in window) {
     speechSynthesis.cancel();
@@ -4672,17 +4790,76 @@ function stopIslandPlayback(recordTime = true) {
   if (
     recordTime &&
     hadPlayback &&
-    islandPlaybackStartedAt
+    activePlaybackTime > 0
   ) {
-    addDailyInput(
-      Date.now() - islandPlaybackStartedAt
-    );
+    addDailyInput(activePlaybackTime);
   }
 
   islandPlaybackStartedAt = 0;
+
+  renderIslands();
+}
+function pauseIslandPlayback() {
+  if (!playingIslandId || islandPlaybackPaused) {
+    return;
+  }
+
+  islandPlaybackPaused = true;
+  islandPausedAt = Date.now();
+
+  /*
+    Stop any silence timer between spoken segments.
+  */
+  if (islandPlaybackTimer) {
+    clearTimeout(islandPlaybackTimer);
+    islandPlaybackTimer = null;
+  }
+
+  /*
+    Browser pause/resume is unreliable, especially on Android.
+    Cancel the current speech instead. Resume will replay the
+    current segment from its beginning.
+  */
+  if (
+    "speechSynthesis" in window &&
+    (speechSynthesis.speaking || speechSynthesis.pending)
+  ) {
+    islandSegmentWasPaused = true;
+    speechSynthesis.cancel();
+  }
+
   renderIslands();
 }
 
+function resumeIslandPlayback() {
+  if (!playingIslandId || !islandPlaybackPaused) {
+    return;
+  }
+
+  if (islandPausedAt) {
+    islandTotalPausedMs += Date.now() - islandPausedAt;
+  }
+
+  islandPausedAt = 0;
+  islandPlaybackPaused = false;
+
+  const continuePlayback = islandResumeCallback;
+  islandResumeCallback = null;
+
+  renderIslands();
+
+  /*
+    Continue playback using our own callback instead of the
+    unreliable browser speechSynthesis.resume() method.
+  */
+  if (continuePlayback) {
+    setTimeout(() => {
+      if (!islandPlaybackPaused && playingIslandId) {
+        continuePlayback();
+      }
+    }, 50);
+  }
+}
 function playIsland(island) {
   if (!("speechSynthesis" in window)) {
     showToast(
@@ -4692,56 +4869,103 @@ function playIsland(island) {
   }
 
   if (practicePlaybackStartedAt) {
-  stopPracticePlayback(true);
-}
+    stopPracticePlayback(true);
+  }
 
-if (playingIslandId) {
-  stopIslandPlayback(true);
-}
+  if (playingIslandId) {
+    stopIslandPlayback(true);
+  }
 
   const segments = islandAudioSegments(island);
 
- if (!segments.length) {
-  showToast(
-    "No audio cards available. They may all be mastered or excluded."
-  );
-  return;
-}
+  if (!segments.length) {
+    showToast(
+      "No audio cards available. They may all be mastered or excluded."
+    );
+    return;
+  }
 
   playingIslandId = island.id;
   islandPlaybackStartedAt = Date.now();
+  islandPlaybackPaused = false;
+islandResumeCallback = null;
+islandPausedAt = 0;
+islandTotalPausedMs = 0;
+islandSegmentWasPaused = false;
+
   renderIslands();
 
   let segmentIndex = 0;
 
-  function playNextSegment() {
-    if (playingIslandId !== island.id) return;
+  function scheduleNextSegment(delayMs) {
+    islandResumeCallback = playNextSegment;
 
-    if (segmentIndex >= segments.length) {
-      const elapsed =
-        Date.now() - islandPlaybackStartedAt;
-
-      addDailyInput(elapsed);
-
-      playingIslandId = null;
-      islandPlaybackStartedAt = 0;
+    islandPlaybackTimer = setTimeout(() => {
       islandPlaybackTimer = null;
+      islandResumeCallback = null;
 
-      renderIslands();
+      if (
+        playingIslandId !== island.id ||
+        islandPlaybackPaused
+      ) {
+        return;
+      }
 
-      showToast(
-        `Finished ${island.name}. Today's input: ${
-          formatDuration(getDailyInput())
-        }.`
-      );
+      playNextSegment();
+    }, delayMs);
+  }
 
+  function finishIslandPlayback() {
+    const elapsed = Math.max(
+      0,
+      Date.now() -
+        islandPlaybackStartedAt -
+        islandTotalPausedMs
+    );
+
+    addDailyInput(elapsed);
+
+    playingIslandId = null;
+    islandPlaybackStartedAt = 0;
+    islandPlaybackTimer = null;
+    islandPlaybackPaused = false;
+    islandResumeCallback = null;
+    islandPausedAt = 0;
+    islandTotalPausedMs = 0;
+islandSegmentWasPaused = false;
+    renderIslands();
+
+    showToast(
+      `Finished ${island.name}. Today's input: ${
+        formatDuration(getDailyInput())
+      }.`
+    );
+  }
+
+  function playNextSegment() {
+    if (
+      playingIslandId !== island.id ||
+      islandPlaybackPaused
+    ) {
       return;
     }
 
-    const segment = segments[segmentIndex];
+    if (segmentIndex >= segments.length) {
+      finishIslandPlayback();
+      return;
+    }
 
-    const utterance =
-      new SpeechSynthesisUtterance(segment.text);
+   const segment = segments[segmentIndex];
+
+/*
+  If Pause cancelled this segment, it is now being replayed
+  from the beginning.
+*/
+islandSegmentWasPaused = false;
+islandResumeCallback = playNextSegment;
+
+const utterance =
+  new SpeechSynthesisUtterance(segment.text);
 
     utterance.lang = "es-ES";
     utterance.rate = appSettings.voiceRate;
@@ -4756,26 +4980,50 @@ if (playingIslandId) {
     }
 
     utterance.onend = () => {
-      if (playingIslandId !== island.id) return;
+  if (playingIslandId !== island.id) {
+    return;
+  }
 
-      segmentIndex += 1;
+  /*
+    speechSynthesis.cancel() may trigger onend.
+    When that cancellation came from Pause, do not advance
+    to the next segment.
+  */
+  if (islandPlaybackPaused || islandSegmentWasPaused) {
+    islandResumeCallback = playNextSegment;
+    return;
+  }
 
-      islandPlaybackTimer = setTimeout(
-        playNextSegment,
-        segment.pauseMs
-      );
-    };
+  segmentIndex += 1;
+  islandResumeCallback = playNextSegment;
 
-    utterance.onerror = () => {
-      if (playingIslandId !== island.id) return;
+  scheduleNextSegment(segment.pauseMs);
+};
 
-      segmentIndex += 1;
+   utterance.onerror = (event) => {
+  if (playingIslandId !== island.id) {
+    return;
+  }
 
-      islandPlaybackTimer = setTimeout(
-        playNextSegment,
-        300
-      );
-    };
+  /*
+    Cancelling speech during Pause can trigger an interrupted
+    or cancelled error. Do not advance to the next segment.
+  */
+  if (
+    islandPlaybackPaused ||
+    islandSegmentWasPaused ||
+    event.error === "interrupted" ||
+    event.error === "canceled"
+  ) {
+    islandResumeCallback = playNextSegment;
+    return;
+  }
+
+  segmentIndex += 1;
+  islandResumeCallback = playNextSegment;
+
+  scheduleNextSegment(300);
+};
 
     speechSynthesis.speak(utterance);
   }
@@ -4864,10 +5112,9 @@ function shadow(options = {}) {
       return;
     }
 
-    const utterance =
-      new SpeechSynthesisUtterance(
-        segments[segmentIndex]
-      );
+    const utterance = new SpeechSynthesisUtterance(
+      segments[segmentIndex]
+    );
 
     utterance.lang = "es-ES";
     utterance.rate = appSettings.voiceRate;
@@ -4888,10 +5135,10 @@ function shadow(options = {}) {
 
       segmentIndex += 1;
 
-      practicePlaybackTimer = setTimeout(
-        nextSegment,
-        appSettings.shadowPauseMs
-      );
+      practicePlaybackTimer = setTimeout(() => {
+        practicePlaybackTimer = null;
+        nextSegment();
+      }, appSettings.shadowPauseMs);
     };
 
     utterance.onerror = () => {
@@ -4901,10 +5148,10 @@ function shadow(options = {}) {
 
       segmentIndex += 1;
 
-      practicePlaybackTimer = setTimeout(
-        nextSegment,
-        300
-      );
+      practicePlaybackTimer = setTimeout(() => {
+        practicePlaybackTimer = null;
+        nextSegment();
+      }, 300);
     };
 
     speechSynthesis.speak(utterance);
