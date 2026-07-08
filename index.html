@@ -134,7 +134,7 @@ button {
     margin-left: 0;
     font-size: 12px;
   }
-}
+
   .menu-wrap {
     margin-left: auto;
   }
@@ -143,6 +143,7 @@ button {
     right: 0;
   }
 }
+
 .app {
   min-height: 100vh;
 }
@@ -713,38 +714,8 @@ h1 {
   width: 100%;
   margin-top: 2px;
 }
-  #aiStartBtn,
-#aiSendBtn {
+ #chatgptPracticeBtn {
   grid-column: span 2;
-}
-
-.ai-chat-box {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.58);
-  color: var(--ink);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.ai-chat-box[hidden] {
-  display: none;
-}
-
-.ai-chat-row strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--sea-dark);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.ai-chat-text {
-  white-space: pre-wrap;
 }
 #speakAnswerBtn.recording {
   background: #a33b32;
@@ -1693,13 +1664,9 @@ textarea {
     Compare
   </button>
 
-  <button id="aiStartBtn" class="btn soft full" type="button">
-    Start AI Chat
-  </button>
-
-  <button id="aiSendBtn" class="btn primary full" type="button">
-    Send to AI
-  </button>
+  <button id="chatgptPracticeBtn" class="btn primary full" type="button">
+  Practise this island in ChatGPT
+</button>
 </div>
 
 <textarea
@@ -1708,7 +1675,6 @@ textarea {
   placeholder="Your spoken answer will appear here..."
 ></textarea>
 
-<div id="aiChatBox" class="ai-chat-box" hidden></div>
 
 <div id="compareAnswerBox" class="compare-answer-box" hidden></div>
 
@@ -2056,8 +2022,6 @@ let practicePlaybackToken = 0;
 let shadowHoldTimer = null;
 let shadowSuppressNextClick = false;
 
-let aiChatMessages = [];
-let aiChatActive = false;
 
 /*
   Remembers which card was last shown so the spoken-answer box
@@ -2079,10 +2043,9 @@ const chunks = document.getElementById("chunks");
 const speakAnswerBtn = document.getElementById("speakAnswerBtn");
 const clearAnswerBtn = document.getElementById("clearAnswerBtn");
 const compareAnswerBtn = document.getElementById("compareAnswerBtn");
-const aiStartBtn = document.getElementById("aiStartBtn");
-const aiSendBtn = document.getElementById("aiSendBtn");
+const chatgptPracticeBtn =
+  document.getElementById("chatgptPracticeBtn");
 const myAnswerText = document.getElementById("myAnswerText");
-const aiChatBox = document.getElementById("aiChatBox");
 const compareAnswerBox = document.getElementById("compareAnswerBox");
 const speechSupportMsg = document.getElementById("speechSupportMsg");
 const rating = document.getElementById("rating");
@@ -2839,154 +2802,177 @@ function updateSpeakAnswerButton() {
     ? "■ Stop Recording"
     : "🎙 Speak Answer";
 }
-function escapeAiHtml(text) {
-  return String(text || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function getIslandContextForAi() {
+async function practiseIslandInChatGPT() {
   const island = activeIsland();
 
-  const examples = island.questions
-    .slice(0, 12)
-    .map((question) => {
-      return `Q: ${question.es}\nA: ${question.answerEs}`;
+  if (
+    !island ||
+    !Array.isArray(island.questions) ||
+    !island.questions.length
+  ) {
+    showToast("This island has no questions.");
+    return;
+  }
+
+  /*
+    Group cards with the same Spanish question so that different
+    model answers do not create repeated questions in the prompt.
+  */
+  const groupedQuestions = new Map();
+
+  island.questions.forEach((question) => {
+    const spanishQuestion = String(question.es || "").trim();
+
+    if (!spanishQuestion) return;
+
+    const key = spanishQuestion
+      .toLocaleLowerCase("es")
+      .replace(/[¿?¡!.,;:]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!groupedQuestions.has(key)) {
+      groupedQuestions.set(key, {
+        es: spanishQuestion,
+        en: String(question.en || "").trim(),
+        answers: []
+      });
+    }
+
+    const group = groupedQuestions.get(key);
+    const answer = String(question.answerEs || "").trim();
+
+    const answerAlreadyExists = group.answers.some(
+      (existingAnswer) =>
+        existingAnswer.toLocaleLowerCase("es") ===
+        answer.toLocaleLowerCase("es")
+    );
+
+    if (answer && !answerAlreadyExists) {
+      group.answers.push(answer);
+    }
+  });
+
+  /*
+    Keep the prompt focused even when an island eventually contains
+    more than 100 cards.
+  */
+  const selectedGroups = [...groupedQuestions.values()]
+    .slice(0, 30);
+
+  const questionList = selectedGroups
+    .map((group, index) => {
+      const englishQuestion = group.en
+        ? ` — ${group.en}`
+        : "";
+
+      return `${index + 1}. ${group.es}${englishQuestion}`;
+    })
+    .join("\n");
+
+  const modelAnswerList = selectedGroups
+    .filter((group) => group.answers.length)
+    .slice(0, 18)
+    .map((group) => {
+      const answers = group.answers
+        .slice(0, 3)
+        .map((answer) => `   - ${answer}`)
+        .join("\n");
+
+      return `${group.es}\n${answers}`;
     })
     .join("\n\n");
 
-  return {
-    islandName: island.name,
-    currentQuestionEs: activeQuestion().es,
-    currentQuestionEn: activeQuestion().en,
-    examples
-  };
-}
+  const prompt = `Act as my Spanish conversation partner.
 
-function renderAiChatBox() {
-  if (!aiChatBox) return;
+Use informal, natural Spanish from Spain at approximately B1 level.
 
-  if (!aiChatMessages.length) {
-    aiChatBox.hidden = true;
-    aiChatBox.innerHTML = "";
-    return;
-  }
+We are practising the topic: "${island.name}".
 
-  aiChatBox.innerHTML = aiChatMessages
-    .slice(-6)
-    .map((item) => {
-      const label = item.role === "user" ? "You" : "AI Spanish partner";
+Speak to me as though we have only just met and are having a natural conversation.
 
-      return `
-        <div class="ai-chat-row">
-          <strong>${label}</strong>
-          <div class="ai-chat-text">${escapeAiHtml(item.text)}</div>
-        </div>
-      `;
-    })
-    .join("");
+Instructions:
+- Speak to me in Spanish.
+- Ask only one question at a time and wait for my spoken answer.
+- Use the supplied questions as inspiration, not as a fixed script.
+- Do not ask all the questions in order.
+- Do not simply interview me from a list.
+- Ask natural follow-up questions based on what I say.
+- React briefly to my answer before asking the next question.
+- Correct only one important mistake at a time.
+- Keep corrections brief, friendly and easy to understand.
+- Give me a more natural version when useful.
+- Continue the conversation naturally after correcting me.
+- Do not give long grammar explanations unless I ask.
+- Keep your replies short enough for a spoken conversation.
+- If I struggle, give me a short phrase-level hint rather than the complete answer.
+- Occasionally reuse vocabulary from the model answers.
+- When the supplied questions have been covered, create new related questions at B1 level.
+- Do not announce that you have reached the end of the supplied questions.
+- Stay on the same general topic unless I change it.
+- When I say "terminar", stop asking questions and give me a very brief summary of what I did well and two useful corrections.
+- Do not claim to know the exact duration of the voice session.
 
-  aiChatBox.hidden = false;
-}
+Possible questions:
 
-async function startAiChat() {
-  aiChatActive = true;
-  aiChatMessages = [];
+${questionList}
 
-  const context = getIslandContextForAi();
+Some model answers and phrases I have been learning:
 
-  myAnswerText.value = "";
-  activeQuestion().myAnswer = "";
+${modelAnswerList}
 
-  if (compareAnswerBox) {
-    compareAnswerBox.hidden = true;
-    compareAnswerBox.innerHTML = "";
-  }
+Start by greeting me naturally in Spanish and asking one suitable opening question.`;
 
-  aiChatMessages.push({
-    role: "assistant",
-    text: `Vamos a practicar "${context.islandName}". Te haré preguntas sencillas en español.`
-  });
-
-  renderAiChatBox();
-
-  const opener = `Vamos a practicar "${context.islandName}". Primero: ${context.currentQuestionEs}`;
-
-  aiChatMessages.push({
-    role: "assistant",
-    text: opener
-  });
-
-  renderAiChatBox();
-  speak(opener);
-}
-
-async function sendAnswerToAi() {
-  const userText = myAnswerText.value.trim();
-
-  if (!userText) {
-    showToast("Speak or type an answer first.");
-    return;
-  }
-
-  aiChatActive = true;
-
-  aiChatMessages.push({
-    role: "user",
-    text: userText
-  });
-
-  renderAiChatBox();
-
-  aiSendBtn.disabled = true;
-  aiSendBtn.textContent = "Thinking...";
+  /*
+    Open ChatGPT immediately during the button press. This reduces
+    the chance of mobile browsers blocking the new tab.
+  */
+  const chatgptTab = window.open(
+    "https://chatgpt.com/",
+    "_blank"
+  );
 
   try {
-    const context = getIslandContextForAi();
+    await navigator.clipboard.writeText(prompt);
 
-    const response = await fetch("/api/spanish-chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        islandName: context.islandName,
-        currentQuestionEs: context.currentQuestionEs,
-        currentQuestionEn: context.currentQuestionEn,
-        islandExamples: context.examples,
-        messages: aiChatMessages.slice(-8)
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error("AI request failed.");
-    }
-
-    const data = await response.json();
-    const reply = String(data.reply || "").trim();
-
-    if (!reply) {
-      throw new Error("The AI did not return a reply.");
-    }
-
-    aiChatMessages.push({
-      role: "assistant",
-      text: reply
-    });
-
-    myAnswerText.value = "";
-    activeQuestion().myAnswer = "";
-
-    renderAiChatBox();
-    speak(reply);
+    showToast(
+      "Prompt copied. Paste it into ChatGPT, send it, then start voice mode."
+    );
   } catch (error) {
-    showToast(error.message || "AI chat failed.");
-  } finally {
-    aiSendBtn.disabled = false;
-    aiSendBtn.textContent = "Send to AI";
+    console.error("Clipboard error:", error);
+
+    /*
+      Clipboard fallback for browsers that do not allow
+      navigator.clipboard.
+    */
+    const temporaryTextArea =
+      document.createElement("textarea");
+
+    temporaryTextArea.value = prompt;
+    temporaryTextArea.style.position = "fixed";
+    temporaryTextArea.style.left = "-9999px";
+    temporaryTextArea.style.opacity = "0";
+
+    document.body.appendChild(temporaryTextArea);
+
+    temporaryTextArea.focus();
+    temporaryTextArea.select();
+
+    const copied = document.execCommand("copy");
+
+    temporaryTextArea.remove();
+
+    showToast(
+      copied
+        ? "Prompt copied. Paste it into ChatGPT, send it, then start voice mode."
+        : "ChatGPT opened, but the prompt could not be copied."
+    );
+  }
+
+  if (!chatgptTab) {
+    showToast(
+      "Prompt copied, but your browser blocked ChatGPT. Open ChatGPT and paste it."
+    );
   }
 }
 function startAnswerDictation() {
@@ -4363,13 +4349,7 @@ question.myAnswer = "";
       compareAnswerBox.innerHTML = "";
     }
 
-    if (aiChatBox) {
-      aiChatBox.hidden = true;
-      aiChatBox.innerHTML = "";
-    }
-
-    aiChatMessages = [];
-    aiChatActive = false;
+    
 
     lastRenderedCardKey = renderedCardKey;
   }
@@ -5819,12 +5799,25 @@ document.getElementById("listenBtn").addEventListener("click", () => {
 
   speak(question.answerEs);
 });
-  speakAnswerBtn.addEventListener("click", startAnswerDictation);
-clearAnswerBtn.addEventListener("click", tryAgainMyAnswer);
-compareAnswerBtn.addEventListener("click", compareMyAnswer);
+ speakAnswerBtn.addEventListener(
+  "click",
+  startAnswerDictation
+);
 
-aiStartBtn.addEventListener("click", startAiChat);
-aiSendBtn.addEventListener("click", sendAnswerToAi);
+clearAnswerBtn.addEventListener(
+  "click",
+  tryAgainMyAnswer
+);
+
+compareAnswerBtn.addEventListener(
+  "click",
+  compareMyAnswer
+);
+
+chatgptPracticeBtn.addEventListener(
+  "click",
+  practiseIslandInChatGPT
+);
 
 compareAnswerBox.addEventListener("click", (event) => {
   if (event.target.id === "saveSpokenAnswerBtn") {
