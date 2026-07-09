@@ -1173,7 +1173,93 @@ textarea {
 .modal-body textarea {
   min-height: 96px;
 }
+  .note-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 
+#speakNoteBtn.recording {
+  color: #fff;
+  background: #a33b32;
+  border-color: transparent;
+}
+
+@media (max-width: 520px) {
+  .note-actions {
+    grid-template-columns: 1fr;
+  }
+}
+.notes-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.notes-empty {
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.note-item {
+  position: relative;
+  padding: 13px 42px 13px 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.note-item-type {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--sea);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.note-item-text {
+  color: var(--ink);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note-item-date {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.note-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.note-delete:hover,
+.note-delete:focus-visible {
+  color: #a33b32;
+  background: rgba(184, 74, 61, 0.12);
+}
 .audio-toggle-row {
   display: flex;
   align-items: flex-start;
@@ -1537,9 +1623,10 @@ textarea {
 
    <div id="appMenu" class="app-menu" hidden>
   <button id="loginBtn" type="button">Log In / Sync</button>
-  <button id="logoutBtn" type="button" hidden>Log Out</button>
-  <button id="settingsBtn" type="button">Settings</button>
-  <button id="exportBtn" type="button">Export Backup</button>
+<button id="logoutBtn" type="button" hidden>Log Out</button>
+<button id="notesBtn" type="button">Notes</button>
+<button id="settingsBtn" type="button">Settings</button>
+<button id="exportBtn" type="button">Export Backup</button>
 <button id="exportCsvBtn" type="button">Export CSV</button>
 <button id="importBtn" type="button">Import JSON</button>
 <button id="importCsvBtn" type="button">Import CSV</button>
@@ -1734,11 +1821,6 @@ textarea {
         <button id="addChunkBtn" class="btn primary full">Add Chunk</button>
       </div>
 
-      <div class="tool-block">
-        <label for="wanted">Things I wanted to say</label>
-        <textarea id="wanted" placeholder="Write a phrase or idea you got stuck on."></textarea>
-        <button id="saveWantedBtn" class="btn soft full">Save Note</button>
-      </div>
 
       <details class="tool-block grow-box">
         <summary>Grow this island</summary>
@@ -1829,6 +1911,57 @@ textarea {
     <div class="modal-actions">
       <button id="cancelSettingsBtn" class="btn soft" type="button">Cancel</button>
       <button id="saveSettingsBtn" class="btn primary" type="button">Save Settings</button>
+    </div>
+  </div>
+</div>
+  <div id="notesModal" class="modal-backdrop" hidden>
+  <div
+    class="modal-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="notesTitle"
+  >
+    <div class="modal-head">
+      <span class="eyebrow">Ideas for later</span>
+      <h2 id="notesTitle">Notes</h2>
+    </div>
+
+    <div class="modal-body">
+      <label for="noteType">Note type</label>
+
+      <select id="noteType">
+        <option value="card">Card idea</option>
+        <option value="vocabulary">Vocabulary</option>
+        <option value="island">Island idea</option>
+        <option value="other">Other</option>
+      </select>
+
+      <label for="noteText">Your note</label>
+
+      <textarea
+  id="noteText"
+  placeholder="Write a word, phrase, card idea or island idea..."
+></textarea>
+
+<div class="note-actions">
+  <button id="speakNoteBtn" class="btn soft full" type="button">
+    🎙 Speak Note
+  </button>
+
+  <button id="addNoteBtn" class="btn primary full" type="button">
+    Add Note
+  </button>
+</div>
+
+<p id="noteSpeechMsg" class="hint"></p>
+
+      <div id="notesList" class="notes-list"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="closeNotesBtn" class="btn soft" type="button">
+        Close
+      </button>
     </div>
   </div>
 </div>
@@ -1971,8 +2104,10 @@ const db = firebase.firestore();
 let currentUser = null;
 const storageKey = "spanish-islands-codepen-v1";
 const inputStorageKey = "spanish-islands-daily-input-v1";
+const notesStorageKey = "spanish-islands-notes-v1";
 
 let islands = loadData();
+let appNotes = loadNotes();
 let activeIslandIndex = 0;
 let activeQuestionIndex = 0;
 let weakIslandActive = false;
@@ -2069,6 +2204,15 @@ const loginPassword = document.getElementById("loginPassword");
 const cancelLoginBtn = document.getElementById("cancelLoginBtn");
 const createAccountBtn = document.getElementById("createAccountBtn");
 const signInBtn = document.getElementById("signInBtn");
+  const notesBtn = document.getElementById("notesBtn");
+const notesModal = document.getElementById("notesModal");
+const noteType = document.getElementById("noteType");
+const noteText = document.getElementById("noteText");
+const speakNoteBtn = document.getElementById("speakNoteBtn");
+const noteSpeechMsg = document.getElementById("noteSpeechMsg");
+const addNoteBtn = document.getElementById("addNoteBtn");
+const closeNotesBtn = document.getElementById("closeNotesBtn");
+const notesList = document.getElementById("notesList");
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const settingVoiceRate = document.getElementById("settingVoiceRate");
@@ -2523,6 +2667,171 @@ function islandDuration(island) {
     0
   );
 }
+  function loadNotes() {
+  try {
+    const savedNotes = JSON.parse(
+      localStorage.getItem(notesStorageKey)
+    );
+
+    return Array.isArray(savedNotes)
+      ? savedNotes
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNotes() {
+  localStorage.setItem(
+    notesStorageKey,
+    JSON.stringify(appNotes)
+  );
+
+  saveCloudData();
+}
+
+function noteTypeLabel(type) {
+  const labels = {
+    card: "Card idea",
+    vocabulary: "Vocabulary",
+    island: "Island idea",
+    other: "Other"
+  };
+
+  return labels[type] || "Other";
+}
+
+function escapeNoteHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatNoteDate(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString([], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function renderNotes() {
+  if (!notesList) return;
+
+  if (!appNotes.length) {
+    notesList.innerHTML = `
+      <div class="notes-empty">
+        No notes yet.
+      </div>
+    `;
+
+    return;
+  }
+
+  notesList.innerHTML = appNotes
+    .map((note) => `
+      <div class="note-item">
+        <span class="note-item-type">
+          ${escapeNoteHtml(noteTypeLabel(note.type))}
+        </span>
+
+        <div class="note-item-text">
+          ${escapeNoteHtml(note.text)}
+        </div>
+
+        <span class="note-item-date">
+          ${escapeNoteHtml(formatNoteDate(note.createdAt))}
+        </span>
+
+        <button
+          class="note-delete"
+          type="button"
+          data-note-id="${escapeNoteHtml(note.id)}"
+          aria-label="Delete note"
+          title="Delete note"
+        >
+          ×
+        </button>
+      </div>
+    `)
+    .join("");
+}
+
+function openNotesModal() {
+  renderNotes();
+
+  notesModal.hidden = false;
+  appMenu.hidden = true;
+
+  setTimeout(() => {
+    noteText.focus();
+  }, 50);
+}
+
+function closeNotesModal() {
+  if (noteRecording && noteRecognition) {
+    noteRecognition.stop();
+  }
+
+  notesModal.hidden = true;
+}
+
+function addNote() {
+  const text = noteText.value.trim();
+
+  if (!text) {
+    showToast("Write a note first.");
+    return;
+  }
+
+  appNotes.unshift({
+    id: crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`,
+    type: noteType.value,
+    text,
+    createdAt: new Date().toISOString()
+  });
+
+  noteText.value = "";
+
+  saveNotes();
+  renderNotes();
+
+  showToast("Note added.");
+}
+
+function deleteNote(noteId) {
+  const note = appNotes.find((item) => item.id === noteId);
+
+  if (!note) return;
+
+  const shouldDelete = confirm(
+    "Delete this note?"
+  );
+
+  if (!shouldDelete) return;
+
+  appNotes = appNotes.filter(
+    (item) => item.id !== noteId
+  );
+
+  saveNotes();
+  renderNotes();
+
+  showToast("Note deleted.");
+}
 function loadData() {
   const saved = localStorage.getItem(storageKey);
   if (!saved) return structuredClone(starterData);
@@ -2551,10 +2860,11 @@ async function saveCloudData() {
       .doc(currentUser.uid)
       .set(
         {
-          islands,
-          appSettings,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        },
+  islands,
+  appSettings,
+  appNotes,
+  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+},
         { merge: true }
       );
 
@@ -2604,7 +2914,14 @@ async function loadCloudData() {
 
       saveSettingsToStorage();
     }
+if (Array.isArray(cloudData.appNotes)) {
+  appNotes = cloudData.appNotes;
 
+  localStorage.setItem(
+    notesStorageKey,
+    JSON.stringify(appNotes)
+  );
+}
     activeIslandIndex = 0;
     activeQuestionIndex = 0;
     ankiComplete = false;
@@ -2785,7 +3102,8 @@ function renderTagFilter() {
 }
   let answerRecognition = null;
 let answerRecording = false;
-
+let noteRecognition = null;
+let noteRecording = false;
 function getSpeechRecognitionConstructor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition;
 }
@@ -2802,6 +3120,103 @@ function updateSpeakAnswerButton() {
     ? "■ Stop Recording"
     : "🎙 Speak Answer";
 }
+  function updateSpeakNoteButton() {
+  if (!speakNoteBtn) return;
+
+  speakNoteBtn.classList.toggle("recording", noteRecording);
+
+  speakNoteBtn.textContent = noteRecording
+    ? "■ Stop Note"
+    : "🎙 Speak Note";
+}
+
+function startNoteDictation() {
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+
+  if (!SpeechRecognition) {
+    if (noteSpeechMsg) {
+      noteSpeechMsg.textContent =
+        "Speech recognition is not supported in this browser. Chrome or Edge usually work best.";
+    }
+
+    showToast("Speech recognition is not supported in this browser.");
+    return;
+  }
+
+  if (noteRecording && noteRecognition) {
+    noteRecognition.stop();
+    return;
+  }
+
+  noteRecognition = new SpeechRecognition();
+
+  /*
+    Notes are mainly quick ideas, so English UK is the safest default.
+    You can still manually edit Spanish words afterwards.
+  */
+  noteRecognition.lang = "en-GB";
+  noteRecognition.interimResults = true;
+  noteRecognition.continuous = false;
+  noteRecognition.maxAlternatives = 1;
+
+  noteRecording = true;
+  updateSpeakNoteButton();
+
+  if (noteSpeechMsg) {
+    noteSpeechMsg.textContent = "Listening... say your note.";
+  }
+
+  const startingNote = noteText.value.trim();
+
+  noteRecognition.onresult = (event) => {
+    const pieces = [];
+
+    for (let index = 0; index < event.results.length; index += 1) {
+      const transcript =
+        event.results[index][0].transcript.trim();
+
+      if (transcript) {
+        pieces.push(transcript);
+      }
+    }
+
+    const latestTranscript = pieces.join(" ").trim();
+
+    if (!latestTranscript) return;
+
+    noteText.value = `${startingNote} ${latestTranscript}`
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  noteRecognition.onerror = (event) => {
+    noteRecording = false;
+    updateSpeakNoteButton();
+
+    if (noteSpeechMsg) {
+      noteSpeechMsg.textContent =
+        "Speech recognition stopped. Try again if needed.";
+    }
+
+    showToast(
+      event.error
+        ? `Speech error: ${event.error}`
+        : "Speech recognition error."
+    );
+  };
+
+  noteRecognition.onend = () => {
+    noteRecording = false;
+    updateSpeakNoteButton();
+
+    if (noteSpeechMsg) {
+      noteSpeechMsg.textContent =
+        "Recording paused. Tap Speak Note again to continue.";
+    }
+  };
+
+  noteRecognition.start();
+}
 async function practiseIslandInChatGPT() {
   const island = activeIsland();
 
@@ -2814,10 +3229,6 @@ async function practiseIslandInChatGPT() {
     return;
   }
 
-  /*
-    Group cards with the same Spanish question so that different
-    model answers do not create repeated questions in the prompt.
-  */
   const groupedQuestions = new Map();
 
   island.questions.forEach((question) => {
@@ -2842,30 +3253,23 @@ async function practiseIslandInChatGPT() {
     const group = groupedQuestions.get(key);
     const answer = String(question.answerEs || "").trim();
 
-    const answerAlreadyExists = group.answers.some(
-      (existingAnswer) =>
-        existingAnswer.toLocaleLowerCase("es") ===
-        answer.toLocaleLowerCase("es")
-    );
-
-    if (answer && !answerAlreadyExists) {
+    if (
+      answer &&
+      !group.answers.some(
+        (existingAnswer) =>
+          existingAnswer.toLocaleLowerCase("es") ===
+          answer.toLocaleLowerCase("es")
+      )
+    ) {
       group.answers.push(answer);
     }
   });
 
-  /*
-    Keep the prompt focused even when an island eventually contains
-    more than 100 cards.
-  */
-  const selectedGroups = [...groupedQuestions.values()]
-    .slice(0, 30);
+  const selectedGroups = [...groupedQuestions.values()].slice(0, 30);
 
   const questionList = selectedGroups
     .map((group, index) => {
-      const englishQuestion = group.en
-        ? ` — ${group.en}`
-        : "";
-
+      const englishQuestion = group.en ? ` — ${group.en}` : "";
       return `${index + 1}. ${group.es}${englishQuestion}`;
     })
     .join("\n");
@@ -2883,7 +3287,7 @@ async function practiseIslandInChatGPT() {
     })
     .join("\n\n");
 
-  const prompt = `Act as my Spanish conversation partner.
+  const corePrompt = `Act as my Spanish conversation partner.
 
 Use informal, natural Spanish from Spain at approximately B1 level.
 
@@ -2924,31 +3328,39 @@ ${modelAnswerList}
 Start by greeting me naturally in Spanish and asking one suitable opening question.`;
 
   /*
-    Open ChatGPT immediately during the button press. This reduces
-    the chance of mobile browsers blocking the new tab.
+    This makes it impossible for anything accidentally added after
+    the final instruction to be copied.
   */
+  const finalLine =
+    "Start by greeting me naturally in Spanish and asking one suitable opening question.";
+
+  const cleanPrompt =
+    corePrompt.split(finalLine)[0] + finalLine;
+
+  const finalPrompt = `--- START SPANISH ISLANDS PROMPT: ${island.name} ---
+
+${cleanPrompt}
+
+--- END SPANISH ISLANDS PROMPT: ${island.name} ---`;
+
   const chatgptTab = window.open(
-    "https://chatgpt.com/",
-    "_blank"
+    "https://chatgpt.com/?new-chat=true",
+    "_blank",
+    "noopener"
   );
 
   try {
-    await navigator.clipboard.writeText(prompt);
+    await navigator.clipboard.writeText(finalPrompt);
 
     showToast(
-      "Prompt copied. Paste it into ChatGPT, send it, then start voice mode."
+      `Copied ${island.name} prompt only. Paste into ChatGPT.`
     );
   } catch (error) {
     console.error("Clipboard error:", error);
 
-    /*
-      Clipboard fallback for browsers that do not allow
-      navigator.clipboard.
-    */
-    const temporaryTextArea =
-      document.createElement("textarea");
+    const temporaryTextArea = document.createElement("textarea");
 
-    temporaryTextArea.value = prompt;
+    temporaryTextArea.value = finalPrompt;
     temporaryTextArea.style.position = "fixed";
     temporaryTextArea.style.left = "-9999px";
     temporaryTextArea.style.opacity = "0";
@@ -2964,7 +3376,7 @@ Start by greeting me naturally in Spanish and asking one suitable opening questi
 
     showToast(
       copied
-        ? "Prompt copied. Paste it into ChatGPT, send it, then start voice mode."
+        ? `Copied ${island.name} prompt only. Paste into ChatGPT.`
         : "ChatGPT opened, but the prompt could not be copied."
     );
   }
@@ -4412,7 +4824,6 @@ if (speechSupportMsg) {
 
 updateSpeakAnswerButton();
 
- document.getElementById("wanted").value = question.notes || "";
 
 mainCard.classList.toggle(
   "hidden-answer",
@@ -5918,7 +6329,24 @@ startSessionBtn.addEventListener("click", startPracticeSession);
 endSessionBtn.addEventListener("click", () => endPracticeSession(true));
 const menuBtn = document.getElementById("menuBtn");
 const appMenu = document.getElementById("appMenu");
+notesBtn.addEventListener("click", openNotesModal);
+speakNoteBtn.addEventListener("click", startNoteDictation);
+addNoteBtn.addEventListener("click", addNote);
+closeNotesBtn.addEventListener("click", closeNotesModal);
 
+notesList.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest(".note-delete");
+
+  if (!deleteButton) return;
+
+  deleteNote(deleteButton.dataset.noteId);
+});
+
+notesModal.addEventListener("click", (event) => {
+  if (event.target === notesModal) {
+    closeNotesModal();
+  }
+});
 menuBtn.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -5934,11 +6362,12 @@ document.addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
+ if (event.key === "Escape") {
   appMenu.hidden = true;
   closeEditCardModal();
   closeSettingsModal();
   closeLoginModal();
+  closeNotesModal();
 }
 });
 
@@ -5990,38 +6419,6 @@ document.getElementById("addChunkBtn").addEventListener("click", () => {
   showToast("Chunk added to this question.");
 });
 
-document.getElementById("saveWantedBtn").addEventListener("click", () => {
-  const wantedText = document.getElementById("wanted").value.trim();
-
-  activeQuestion().notes = wantedText;
-  saveData();
-
-  if (wantedText) {
-    const growBox = document.querySelector(".grow-box");
-    const newQuestionEs = document.getElementById("newQuestionEs");
-    const newQuestionEn = document.getElementById("newQuestionEn");
-    const newAnswerEn = document.getElementById("newAnswerEn");
-
-    growBox.open = true;
-
-    if (!newQuestionEs.value.trim()) {
-      newQuestionEs.value = activeQuestion().es || "";
-    }
-
-    if (!newQuestionEn.value.trim()) {
-      newQuestionEn.value = activeQuestion().en || "";
-    }
-
-    if (!newAnswerEn.value.trim()) {
-      newAnswerEn.value = wantedText;
-    }
-
-    showToast("Note saved and added to Grow this island.");
-    return;
-  }
-
-  showToast("Note saved.");
-});
 
 document.getElementById("addQuestionBtn").addEventListener("click", () => {
   const es = document.getElementById("newQuestionEs").value.trim();
